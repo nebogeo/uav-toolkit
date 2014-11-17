@@ -1,0 +1,94 @@
+;; Starwisp Copyright (C) 2013 Dave Griffiths
+;;
+;; This program is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU Affero General Public License as
+;; published by the Free Software Foundation, either version 3 of the
+;; License, or (at your option) any later version.
+;;
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU Affero General Public License for more details.
+;;
+;; You should have received a copy of the GNU Affero General Public License
+;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; strings
+
+
+;; colours
+(msg "starting up....")
+(define entity-types (list "village" "household" "individual" "child" "crop"))
+
+(define trans-col (list 0 0 0 0))
+(define colour-one (list 0 0 255 100))
+(define colour-two (list  127 127 255 100))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; persistent database
+
+(define db "/sdcard/uav-toolkit/uav-toolkit.db")
+(db-open db)
+(setup db "local")
+(setup db "sync")
+(setup db "stream")
+
+(define settings-entity-id-version 2)
+
+(insert-entity-if-not-exists
+ db "local" "app-settings" "null" settings-entity-id-version
+ (list
+  (ktv "user-id" "varchar" "not set")
+  (ktv "language" "int" 0)
+  (ktv "current-village" "varchar" "none")))
+
+(define (get-setting-value name)
+  (ktv-get (get-entity db "local" settings-entity-id-version) name))
+
+(define (set-setting! key type value)
+  (update-entity
+   db "local" settings-entity-id-version (list (ktv key type value))))
+
+(define (get/inc-setting key)
+  (let ((r (get-setting-value key)))
+    (set-setting! key "int" (+ r 1))
+    r))
+
+(set-current! 'user-id (get-setting-value "user-id"))
+(set! i18n-lang (get-setting-value "language"))
+
+;;(display (db-all db "local" "app-settings"))(newline)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; fragments
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; activities
+
+(define photo-code 999)
+
+(define-activity-list
+
+  (activity
+   "main"
+   (vert
+    (image-view 0 "logo" (layout 'wrap-content 'wrap-content -1 'centre 0))
+    (button (make-id "main-start")
+            "UAV toolkit"
+            40 (layout 'wrap-content 'wrap-content -1 'centre 5)
+            (lambda () (list (start-activity-goto "main" 0 "")))))
+   (lambda (activity arg)
+     (activity-layout activity))
+   (lambda (activity arg) '())
+   (lambda (activity) '())
+   (lambda (activity) '())
+   (lambda (activity) '())
+   (lambda (activity) '())
+   (lambda (activity requestcode resultcode) '()))
+  )
+
+
+;(build-test! db "sync" village-ktvlist household-ktvlist individual-ktvlist)

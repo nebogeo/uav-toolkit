@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <color name="bg">#aaaaaa</color>
+  <color name="text">#000000</color>
+  <color name="buttonbg">#ffffff</color>
+
+  <style name="StarwispButton" parent="android:style/Widget.Button">
+    <item name="android:textColor">@color/text</item>
+    <item name="android:textSize">50sp</item>
+    <item name="android:layout_margin">10dip</item>
+    <item name="android:background">@drawable/swarmbutton</item>
+    <item name="android:layout_marginBottom">5dp</item>
+  </style>
+
+  <style name="StarwispFancyToggleButton" parent="android:style/Widget.Button">
+    <item name="android:textColor">@color/text</item>
+    <item name="android:textSize">50sp</item>
+    <item name="android:layout_margin">10dip</item>
+    <item name="android:drawableTop">@drawable/swarmtoggledrawable</item>
+    <item name="android:background">@drawable/swarmtoggle</item>
+    <item name="android:layout_marginBottom">0dp</item>
+  </style>
+
+  <style name="StarwispYesToggleButton" parent="android:style/Widget.Button">
+    <item name="android:textColor">@color/text</item>
+    <item name="android:textSize">50sp</item>
+    <item name="android:layout_margin">10dip</item>
+    <item name="android:background">@drawable/swarmtoggledrawable_yes</item>
+    <item name="android:layout_marginBottom">5dp</item>
+  </style>
+
+  <style name="StarwispMaybeToggleButton" parent="android:style/Widget.Button">
+    <item name="android:textColor">@color/text</item>
+    <item name="android:textSize">50sp</item>
+    <item name="android:layout_margin">10dip</item>
+    <item name="android:background">@drawable/swarmtoggledrawable_maybe</item>
+    <item name="android:layout_marginBottom">5dp</item>
+  </style>
+
+  <style name="StarwispNoToggleButton" parent="android:style/Widget.Button">
+    <item name="android:textColor">@color/text</item>
+    <item name="android:textSize">50sp</item>
+    <item name="android:layout_margin">10dip</item>
+    <item name="android:background">@drawable/swarmtoggledrawable_no</item>
+    <item name="android:layout_marginBottom">5dp</item>
+  </style>
+
+  <style name="StarwispSpinnerItem" parent="android:Widget.TextView.SpinnerItem">
+<!--    <item name="android:textAppearance">@style/StarwispTextAppearanceSpinnerItem</item> -->
+    <item name="android:background">@drawable/swarmspinner</item>
+  </style>
+
+  <style name="StarwispTextAppearanceSpinnerItem" parent="android:TextAppearance.Widget.TextView.SpinnerItem">
+    <item name="android:textColor">@color/text</item>
+    <item name="android:textSize">50sp</item>
+  </style>
+
+  <style name="StarwispSpinner" parent="android:style/Widget.Spinner">
+    <item name="android:textColor">@color/text</item>
+    <item name="android:textSize">50sp</item>
+    <item name="android:background">@drawable/swarmspinner</item>
+  </style>
+
+  <style name="StarwispSeekBar" parent="android:style/Widget.SeekBar">
+    <item name="android:progressDrawable">@drawable/seekprogress</item>
+    <item name="android:thumb">@drawable/seekthumb</item>
+  </style>
+
+  <style name="StarwispTheme" parent="android:Theme.Light">
+    <item name="android:textColor">@color/text</item>
+    <item name="android:textColorLink">#005500</item>
+    <item name="android:windowBackground">@drawable/bg_style</item>
+    <item name="android:colorBackground">@color/bg</item>
+    <item name="android:buttonStyle">@style/StarwispButton</item>
+    <item name="android:buttonStyleToggle">@style/StarwispButton</item>
+    <item name="android:imageButtonStyle">@style/StarwispButton</item>
+
+    <item name="android:seekBarStyle">@style/StarwispSeekBar</item>
+    <item name="android:spinnerItemStyle">@style/StarwispSpinnerItem</item>
+    <item name="android:spinnerStyle">@style/StarwispSpinner</item>
+  </style>
+
+
+</resources>
