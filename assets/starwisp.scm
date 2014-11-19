@@ -76,13 +76,63 @@
    "main"
    (vert
     (image-view 0 "logo" (layout 'wrap-content 'wrap-content -1 'centre 0))
-    (button (make-id "main-start")
-            "UAV toolkit"
-            40 (layout 'wrap-content 'wrap-content -1 'centre 5)
-            (lambda () (list (start-activity-goto "main" 0 "")))))
+
+    (scroll-view-vert
+     0 (layout 'fill-parent 'wrap-content 0.75 'centre 0)
+     (list
+      (linear-layout
+       (make-id "sensor-list") 'vertical
+       (layout 'fill-parent 'wrap-content 0.75 'centre 0)
+       (list 0 0 0 0)
+       (list))))
+
+
+    (horiz
+     (button
+      (make-id "main-start")
+      "Start"
+      40 (layout 'wrap-content 'wrap-content 1 'centre 5)
+      (lambda ()
+        (list
+         (sensors-start
+          "start-sensors"
+          (lambda (data)
+            (list
+             (update-widget
+              'text-view
+              (get-id (string-append (list-ref data 0) "-values")) 'text
+              (apply
+               string-append
+               (map (lambda (d) (string-append (number->string d) " "))
+                    (cdr (cdr (cdr (cdr data)))))))))))))
+     (button
+      (make-id "main-stop")
+      "Stop"
+      40 (layout 'wrap-content 'wrap-content 1 'centre 5)
+      (lambda () (list (sensors-stop))))
+     ))
+
    (lambda (activity arg)
      (activity-layout activity))
-   (lambda (activity arg) '())
+   (lambda (activity arg)
+     (list
+      (sensors-get
+       "build-sensors"
+       (lambda (data)
+         (list
+          (update-widget 'linear-layout (get-id "sensor-list") 'contents
+                         (map
+                          (lambda (sensor)
+                            (linear-layout
+                             0 'vertical
+                             (layout 'fill-parent 'wrap-content 0.75 'centre 5)
+                             (list 255 255 0 255)
+                             (list
+                              (text-view (make-id (list-ref sensor 0)) (list-ref sensor 0) 20 fillwrap)
+                              (text-view (make-id (dbg (string-append (list-ref sensor 0) "-values")))
+                                         "Nothing yet..." 15 fillwrap))))
+                          data)))))
+      ))
    (lambda (activity) '())
    (lambda (activity) '())
    (lambda (activity) '())

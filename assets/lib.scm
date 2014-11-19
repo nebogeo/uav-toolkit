@@ -511,6 +511,9 @@
 ;; treat this like a dialog so the callback fires
 (define (list-files name path fn) (list "list-files" 0 "list-files" name fn path))
 (define (gps-start name fn) (list "gps-start" 0 "gps-start" name fn))
+(define (sensors-start name fn) (list "sensors-start" 0 "sensors-start" name fn))
+(define (sensors-stop) (list "sensors-stop" 0 "sensors-stop"))
+(define (sensors-get name fn) (list "sensors-get" 0 "sensors-get" name fn))
 (define (delayed name delay fn) (list "delayed" 0 "delayed" name fn delay))
 (define (network-connect name ssid fn) (list "network-connect" 0 "network-connect" name fn ssid))
 (define (http-request name url fn) (list "http-request" 0 "http-request" name fn url))
@@ -854,6 +857,8 @@
                   (equal? (list-ref event 0) "network-connect")
                   (equal? (list-ref event 0) "delayed")
                   (equal? (list-ref event 0) "walk-draggable")
+                  (equal? (list-ref event 0) "sensors-start")
+                  (equal? (list-ref event 0) "sensors-get")
                   (equal? (list-ref event 0) "gps-start"))
                  (add-new-dialog! event)))
          events)))
