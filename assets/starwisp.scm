@@ -81,15 +81,52 @@
      0 (layout 'fill-parent 'wrap-content 0.75 'centre 0)
      (list
       (linear-layout
+       (make-id "button-list") 'vertical
+       (layout 'fill-parent 'wrap-content 0.75 'centre 0)
+       (list 0 0 0 0)
+       (list
+     (button
+      (make-id "main-sensors")
+      "Peek at your sensors"
+      40 (layout 'fill-parent 'wrap-content -1 'centre 5)
+      (lambda ()
+        (list (start-activity "sensor" 0 ""))))
+     (button
+      (make-id "main-camera")
+      "Check the camera"
+      40 (layout 'fill-parent 'wrap-content -1 'centre 5)
+      (lambda ()
+        (list (start-activity "camera" 0 ""))))
+     ))))
+    )
+
+   (lambda (activity arg)
+     (activity-layout activity))
+   (lambda (activity arg)
+     (list))
+   (lambda (activity) '())
+   (lambda (activity) '())
+   (lambda (activity) '())
+   (lambda (activity) '())
+   (lambda (activity requestcode resultcode) '()))
+
+  (activity
+   "sensor"
+   (vert
+    (image-view 0 "logo" (layout 'wrap-content 'wrap-content -1 'centre 0))
+
+    (scroll-view-vert
+     0 (layout 'fill-parent 'wrap-content 0.75 'centre 0)
+     (list
+      (linear-layout
        (make-id "sensor-list") 'vertical
        (layout 'fill-parent 'wrap-content 0.75 'centre 0)
        (list 0 0 0 0)
        (list))))
 
-
     (horiz
      (button
-      (make-id "main-start")
+      (make-id "sensors-start")
       "Start"
       40 (layout 'wrap-content 'wrap-content 1 'centre 5)
       (lambda ()
@@ -106,18 +143,24 @@
                (map (lambda (d) (string-append (number->string d) " "))
                     (cdr (cdr (cdr (cdr data)))))))))))))
      (button
-      (make-id "main-stop")
+      (make-id "sensors-stop")
       "Stop"
       40 (layout 'wrap-content 'wrap-content 1 'centre 5)
-      (lambda () (list (sensors-stop))))
-     ))
+      (lambda () (list (sensors-stop)))))
+
+    (button
+     (make-id "sensors-back")
+     "Back"
+     40 (layout 'fill-parent 'wrap-content 1 'centre 5)
+     (lambda ()
+       (list (finish-activity 0)))))
 
    (lambda (activity arg)
      (activity-layout activity))
    (lambda (activity arg)
      (list
       (sensors-get
-       "build-sensors"
+       "build-sensors-cb"
        (lambda (data)
          (list
           (update-widget 'linear-layout (get-id "sensor-list") 'contents
@@ -138,6 +181,62 @@
    (lambda (activity) '())
    (lambda (activity) '())
    (lambda (activity requestcode resultcode) '()))
+
+  (activity
+   "camera"
+   (vert
+    (camera-preview (make-id "camerap") (layout 'fill-parent 320 1 'left 0))
+
+    (scroll-view-vert
+     0 (layout 'fill-parent 'wrap-content 0.75 'centre 0)
+     (list
+      (linear-layout
+       (make-id "camera-props") 'vertical
+       (layout 'fill-parent 'wrap-content 0.75 'centre 0)
+       (list 0 0 0 0)
+       (list))))
+
+    (button
+     (make-id "get-camera-props")
+     "Properties"
+     40 (layout 'wrap-content 'wrap-content 1 'centre 5)
+     (lambda ()
+       (msg camera-properties)
+       (list
+        (update-widget 'linear-layout (get-id "camera-props") 'contents
+                       (map
+                        (lambda (p)
+                          (horiz
+                           (text-view 0 (list-ref p 0) 20 (layout 'fill-parent 'wrap-content 1 'left 0))
+                           (text-view 0 (list-ref p 1) 20 (layout 'fill-parent 'wrap-content 1 'left 0))))
+                        camera-properties)
+                       ))))
+
+
+    (button
+     (make-id "camera-back")
+     "Back"
+     40 (layout 'wrap-content 'wrap-content 1 'centre 5)
+     (lambda ()
+       (list
+        (update-widget 'camera-preview (get-id "camerap") 'shutdown 0)
+        (finish-activity 0)))))
+
+   (lambda (activity arg)
+     (activity-layout activity))
+   (lambda (activity arg)
+     (list))
+   (lambda (activity)
+     (list (update-widget 'camera-preview (get-id "camerap") 'shutdown 0)))
+   (lambda (activity) '())
+   (lambda (activity)
+     (list (update-widget 'camera-preview (get-id "camerap") 'shutdown 0)))
+   (lambda (activity)
+     (list (update-widget 'camera-preview (get-id "camerap") 'shutdown 0)))
+   (lambda (activity requestcode resultcode) '()))
+
+
+
   )
 
 

@@ -550,6 +550,7 @@
 (define (update-widget-token l) (list-ref l 2))
 (define (update-widget-value l) (list-ref l 3))
 
+(define camera-properties '())
 (define id-map ())
 (define current-id 1)
 
@@ -594,7 +595,9 @@
   (let ((r (id-map-get name)))
     (cond
      ((zero? r) (msg "no id found for" name) 0)
-     (else r))))
+     (else
+      ;;(msg "found id" name " " r)
+      r))))
 
 (define (make-id name)
   ;;(msg "making id for" name)
@@ -611,6 +614,7 @@
       ;; seems scheme is shut down while the id store keeps going?
       (when (> id current-id) (set! current-id (+ id 1)))
       ;;(msg "we have seen this one before")
+      ;;(msg id)
       id))))
 
 (define prof-map '())

@@ -62,6 +62,8 @@ public class starwisp extends StarwispActivity
     static {
         // register all activities here
         ActivityManager.RegisterActivity("main",starwisp.class);
+        ActivityManager.RegisterActivity("sensor",SensorActivity.class);
+        ActivityManager.RegisterActivity("camera",CameraActivity.class);
     };
 
     /** Called when the activity is first created. */
