@@ -184,8 +184,40 @@
 
   (activity
    "camera"
-   (vert
-    (camera-preview (make-id "camerap") (layout 'fill-parent 320 1 'left 0))
+   (horiz
+    (vert
+     (camera-preview (make-id "camerap") (layout 'fill-parent 320 1 'left 0))
+
+     (horiz
+     (button
+      (make-id "get-camera-props")
+      "Properties"
+      20 (layout 'wrap-content 'wrap-content 1 'centre 5)
+      (lambda ()
+        (list
+         (update-widget 'linear-layout (get-id "camera-props") 'contents
+                       (map
+                        (lambda (p)
+                          (linear-layout
+                           0 'horizontal
+                           (layout 'fill-parent 'wrap-content 0.75 'centre 5)
+                           (list 255 255 0 255)
+                           (list
+                            (text-view 0 (list-ref p 0) 20 (layout 'fill-parent 'wrap-content 1 'left 0))
+                            (text-view 0 (list-ref p 1) 20 (layout 'fill-parent 'wrap-content 1 'left 0)))))
+                        camera-properties)
+                       ))))
+
+
+     (button
+      (make-id "camera-back")
+      "Back"
+      20 (layout 'wrap-content 'wrap-content 1 'centre 5)
+      (lambda ()
+        (list
+         (update-widget 'camera-preview (get-id "camerap") 'shutdown 0)
+         (finish-activity 0))))
+     ))
 
     (scroll-view-vert
      0 (layout 'fill-parent 'wrap-content 0.75 'centre 0)
@@ -196,31 +228,8 @@
        (list 0 0 0 0)
        (list))))
 
-    (button
-     (make-id "get-camera-props")
-     "Properties"
-     40 (layout 'wrap-content 'wrap-content 1 'centre 5)
-     (lambda ()
-       (msg camera-properties)
-       (list
-        (update-widget 'linear-layout (get-id "camera-props") 'contents
-                       (map
-                        (lambda (p)
-                          (horiz
-                           (text-view 0 (list-ref p 0) 20 (layout 'fill-parent 'wrap-content 1 'left 0))
-                           (text-view 0 (list-ref p 1) 20 (layout 'fill-parent 'wrap-content 1 'left 0))))
-                        camera-properties)
-                       ))))
 
-
-    (button
-     (make-id "camera-back")
-     "Back"
-     40 (layout 'wrap-content 'wrap-content 1 'centre 5)
-     (lambda ()
-       (list
-        (update-widget 'camera-preview (get-id "camerap") 'shutdown 0)
-        (finish-activity 0)))))
+    )
 
    (lambda (activity arg)
      (activity-layout activity))

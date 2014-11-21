@@ -83,7 +83,12 @@
      "as d on d.entity_id = e.entity_id and d.attribute_id = 'deleted' and "
      "d.value = 0 ")
     filter)
-   (if typed "where e.entity_type = ? order by n.value"
+   (if typed
+       (if (equal? typed "mongoose")
+           (begin
+             (msg "ordering chop...")
+             "where e.entity_type = ? order by substr(n.value,3)")
+           "where e.entity_type = ? order by n.value")
        "order by n.value")))
 
 (define (build-query-inc-deleted table filter)
@@ -105,7 +110,7 @@
      "join " table "_value_varchar "
      "as n on n.entity_id = e.entity_id and n.attribute_id = 'name' ")
     filter)
-   "where e.entity_type = ? order by n.value"))
+   "where e.entity_type = ? order by value"))
 
 
 (define (build-args filter)
