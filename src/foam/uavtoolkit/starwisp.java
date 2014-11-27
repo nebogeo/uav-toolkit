@@ -64,6 +64,7 @@ public class starwisp extends StarwispActivity
         ActivityManager.RegisterActivity("main",starwisp.class);
         ActivityManager.RegisterActivity("sensor",SensorActivity.class);
         ActivityManager.RegisterActivity("camera",CameraActivity.class);
+        ActivityManager.RegisterActivity("vptest",VPTestActivity.class);
     };
 
     /** Called when the activity is first created. */
@@ -84,6 +85,7 @@ public class starwisp extends StarwispActivity
         m_Scheme = new Scheme(this);
 
         m_Scheme.Load("lib.scm");
+        m_Scheme.Load("json.scm");
         m_Scheme.Load("racket-fix.scm");
         m_Scheme.Load("eavdb/ktv.ss");
         m_Scheme.Load("eavdb/ktv-list.ss");

@@ -31,8 +31,7 @@
 (define db "/sdcard/uav-toolkit/uav-toolkit.db")
 (db-open db)
 (setup db "local")
-(setup db "sync")
-(setup db "stream")
+(setup db "code")
 
 (define settings-entity-id-version 2)
 
@@ -55,10 +54,57 @@
     (set-setting! key "int" (+ r 1))
     r))
 
+(define code-version 2)
+
+(insert-entity-if-not-exists
+ db "code" "program" "null" code-version
+ (list
+  (ktv "text" "varchar" (scheme->json '(toast (number->string (+ 2 3 4)))))))
+
 (set-current! 'user-id (get-setting-value "user-id"))
 (set! i18n-lang (get-setting-value "language"))
 
 ;;(display (db-all db "local" "app-settings"))(newline)
+
+(define did 100)
+(define (new-id)
+  (set! did (+ did 1))
+  (number->string did))
+
+(define (inner-code-blockify code)
+  (msg "inner:" code)
+  (cond
+   ((null? code) (code-block "list" '()))
+   ((number? code) (code-block (number->string code) '()))
+   ((symbol? code) (code-block (symbol->string code) '()))
+   ((string? code) (code-block code '()))
+   ((list? code)
+    ;; ignore first 'list'
+    (code-block (cadr code)
+                (map inner-code-blockify (cddr code))))
+   (else (code-block "error" '()))))
+
+(define (text->code-block text)
+  (msg "text->codeblock" text)
+  (let ((code (json/parse-string text)))
+    (inner-code-blockify code)))
+
+(define (load-code)
+  (text->code-block (ktv-get (get-entity db "code" code-version) "text")))
+
+(define (code-block text children)
+  (let ((id (new-id)))
+    (draggable
+     (make-id (string-append id "-code-block"))
+     'vertical wrap (list 120 255 120 50)
+     (append
+      (list
+       (text-view 0 text 30 wrap))
+      children)
+     (lambda ()
+       (msg "code-block callback called")
+       text))))
+
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -88,15 +134,22 @@
      (button
       (make-id "main-sensors")
       "Peek at your sensors"
-      40 (layout 'fill-parent 'wrap-content -1 'centre 5)
+      30 (layout 'fill-parent 'wrap-content -1 'centre 5)
       (lambda ()
         (list (start-activity "sensor" 0 ""))))
      (button
       (make-id "main-camera")
       "Check the camera"
-      40 (layout 'fill-parent 'wrap-content -1 'centre 5)
+      30 (layout 'fill-parent 'wrap-content -1 'centre 5)
       (lambda ()
         (list (start-activity "camera" 0 ""))))
+     (button
+      (make-id "vis-prog")
+      "Visual programming"
+      30 (layout 'fill-parent 'wrap-content -1 'centre 5)
+      (lambda ()
+        (list (start-activity "vptest" 0 ""))))
+
      ))))
     )
 
@@ -244,6 +297,84 @@
      (list (update-widget 'camera-preview (get-id "camerap") 'shutdown 0)))
    (lambda (activity requestcode resultcode) '()))
 
+  (activity
+   "vptest"
+   (vert
+    (horiz
+     (mbutton-scale
+      'add-block
+      (lambda ()
+        (list (update-widget
+               'draggable 99
+               'contents (list (code-block "foo" '()))))))
+     (mbutton-scale
+      'eval
+      (lambda ()
+        (list
+         (walk-draggable "eval-walk" 99
+                         (lambda (t)
+                           (msg t)
+                           (msg (eval t))
+
+                           (list
+                            (eval t)
+                            ))))))
+     (mbutton-scale
+      'save
+      (lambda ()
+        (list
+         (walk-draggable "eval-walk" 99
+                         (lambda (t)
+                           (update-entity
+                            db "code" code-version
+                            (list
+                             (ktv "text" "varchar" (scheme->json t))))
+                           (list
+                            (toast (string-append "saved"))))))))
+     )
+    (scroll-view-vert
+     0 (layout 'fill-parent 'wrap-content 1 'centre 0)
+     (list
+      (draggable
+       99 'vertical (layout 'fill-parent 'fill-parent 1 'left 0) (list 255 255 255 255)
+       (list
+;        (code-block "toast" 20
+;                    (list
+;                     (code-block "number->string" 20
+;                                 (list
+;                                  (code-block "+" 20
+;                                              (list
+;                                               (code-block "3" 20 '())
+;                                               (code-block "4" 20 '())))
+;                                  ))))
+
+;        (code-block "toast" 20
+;                    (list
+;                     (code-block "string-append" 20
+;                                 (list
+;                                  (code-block "symbol->string" 20 (list (code-block "'hello" 20 '())))
+;                                  (code-block "symbol->string" 20 (list (code-block "'world" 20 '()))))
+;                     )))
+
+
+        ;            (list
+        ;             (code-block "2" "hello world" 20 '())))
+        )
+       (lambda () "")))))
+   (lambda (activity arg)
+     (activity-layout activity))
+   (lambda (activity arg)
+     (list
+      (update-widget
+       'draggable 99
+       'contents (list (load-code)))
+      ))
+   (lambda (activity) '())
+   (lambda (activity) '())
+   (lambda (activity) '())
+   (lambda (activity) '())
+   (lambda (activity requestcode resultcode)
+     (list)))
 
 
   )

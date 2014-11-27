@@ -399,49 +399,6 @@
           (else (split-by-charset str charset maxsplit))))))
   )
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; convert scheme values into equivilent json strings
-
-(define (scheme->json v)
-  (cond
-   ((number? v) (number->string v))
-   ((symbol? v) (string-append "\"" (symbol->string v) "\""))
-   ((string? v) (string-append "\"" v "\""))
-   ((boolean? v) (if v "true" "false"))
-   ((list? v)
-    (cond
-     ((null? v) "[]")
-     (else
-      ; if it quacks like an assoc list...
-      (if (and (not (null? v)) (not (list? (car v))) (pair? (car v)))
-          (assoc->json v)
-          (list->json v)))))
-   (else "[]"))) ;;(display "value->js, unsupported type for ") (display v) (newline) "[]")))
-
-(define (list->json l)
-  (define (_ l s)
-    (cond
-     ((null? l) s)
-     (else
-      (_ (cdr l)
-         (string-append
-          s
-          (if (not (string=? s "")) ", " "")
-          (scheme->json (car l)))))))
-  (string-append "[" (_ l "") "]"))
-
-; ((one . 1) (two . "three")) -> { "one": 1, "two": "three }
-
-(define (assoc->json l)
-  (define (_ l s)
-    (cond
-     ((null? l) s)
-     (else
-      (let ((token (scheme->json (car (car l))))
-            (value (scheme->json (cdr (car l)))))
-        (_ (cdr l) (string-append s (if (not (string=? s "")) "," "")
-                                  "\n" token ": " value))))))
-  (string-append "{" (_ l "") "\n" "}"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; android ui
@@ -799,7 +756,7 @@
 ;; walk through update stripping callbacks
 ;; version called with update-widgets (after on-create version above)
 (define (update-callbacks-from-update! widget-list)
-  (if (null? widget-list) #f
+  (if (or (not (list? widget-list)) (null? widget-list)) #f
       (let ((w (car widget-list)))
         (cond
          ((null? w) #f)
@@ -948,13 +905,19 @@
                  ((callback-fn cb)))
                 (else
                  (msg "no callbacks for type" (callback-type cb))))))
+
           ;; this was just update-callbacks, commented out,
           ;; expecting trouble here... (but seems to fix new widgets from
           ;; widget callbacks so far)
           (update-callbacks-from-update! events)
-          (update-dialogs! events)
+          (update-dialogs! events) ;;)
           (send (scheme->json events))
           (prof-end "widget-callback")))))
 
+(define (run-draggable-callback activity-name widget-id args)
+  (let ((cb (find-callback widget-id)))
+    (if (not cb)
+        (msg "no widget" widget-id "found!")
+        (send ((callback-fn cb))))))
 
 (alog "lib.scm done")
