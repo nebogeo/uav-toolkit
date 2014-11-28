@@ -450,6 +450,7 @@
      (layout 'fill-parent 'wrap-content -1 'left 0))
 
     (spacer 20)
+    (mtext 'code)
 
     (scroll-view-vert
      0 (layout 'fill-parent 'fill-parent -1 'centre 0)
@@ -459,7 +460,17 @@
        'vertical (layout 'fill-parent 'fill-parent -1 'left 0) (list 255 255 0 20)
        "drop-only"
        (list)
-       (lambda () "")))))
+       (lambda () ""))))
+
+    (spacer 20)
+
+    (draggable
+     (make-id "block-bin")
+     'vertical (layout 'fill-parent 'fill-parent -1 'left 0) (list 255 255 0 20)
+     "drop-only-consume"
+     (list (mtext 'rubbish-bin))
+     (lambda () ""))
+    )
    (lambda (activity arg)
      (activity-layout activity))
    (lambda (activity arg)

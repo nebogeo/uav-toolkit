@@ -8,4 +8,6 @@
    (list 'control (list "control"))
    (list 'maths (list "maths"))
    (list 'display (list "display"))
+   (list 'rubbish-bin (list "rubbish bin"))
+   (list 'code (list "code"))
    ))
