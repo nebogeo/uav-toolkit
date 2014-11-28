@@ -54,7 +54,7 @@
     (set-setting! key "int" (+ r 1))
     r))
 
-(define code-version 3)
+(define code-version 4)
 
 (insert-entity-if-not-exists
  db "code" "program" "null" code-version
