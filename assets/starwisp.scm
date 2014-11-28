@@ -54,17 +54,31 @@
     (set-setting! key "int" (+ r 1))
     r))
 
-(define code-version 2)
+(define code-version 3)
 
 (insert-entity-if-not-exists
  db "code" "program" "null" code-version
  (list
-  (ktv "text" "varchar" (scheme->json '(toast (number->string (+ 2 3 4)))))))
+  (ktv "text" "varchar" (scheme->json '(when-timer 3 (toast (number->string (+ 2 3 4))))))))
 
 (set-current! 'user-id (get-setting-value "user-id"))
 (set! i18n-lang (get-setting-value "language"))
 
 ;;(display (db-all db "local" "app-settings"))(newline)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define-macro (when-timer . args)
+  `(begin
+     (define (when-timer-cb)
+       ;;(msg ,(cdr args))
+       (list
+        ,(cadr args)
+        (delayed "when-timer" (* 1000 ,(car args)) when-timer-cb)))
+     (list
+      (delayed "when-timer" (* 1000 ,(car args)) when-timer-cb))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define did 100)
 (define (new-id)
@@ -120,11 +134,11 @@
 
 (define maths-colour (list 200 100 255 255))
 (define maths-functions
-  (list "+" "-" "/" "*" "sin" "cos" "tan" "asin" "acos" "atan" "modulo" "pow" "300" "hello world"))
+  (list "+" "-" "/" "*" "sin" "cos" "tan" "asin" "acos" "atan" "modulo" "pow" "300" "\\\"hello world\\\""))
 
 (define display-colour (list 100 255 200 255))
 (define display-functions
-  (list "toast" "sound"))
+  (list "toast" "sound" "vibrate"))
 
 (define (code-block-colour text)
   (cond
@@ -415,10 +429,8 @@
                          (lambda (t)
                            (msg t)
                            (msg (eval t))
-
-                           (list
-                            (eval t)
-                            ))))))
+                           (eval t)
+                           )))))
      (mbutton-scale
       'save
       (lambda ()
