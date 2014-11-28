@@ -543,24 +543,24 @@
 (define (mbutton id fn)
   (button (symbol->id id)
           (mtext-lookup id)
-          20 (layout 'fill-parent 'wrap-content -1 'centre 5) fn))
+          30 (layout 'fill-parent 'wrap-content -1 'centre 5) fn))
 
 (define (mbutton-scale id fn)
   (button (symbol->id id)
           (mtext-lookup id)
-          20 (layout 'fill-parent 'wrap-content 1 'centre 5) fn))
+          30 (layout 'fill-parent 'wrap-content 1 'centre 5) fn))
 
 (define (mtoggle-button id fn)
   (toggle-button (symbol->id id)
                  (mtext-lookup id)
-                 30 (layout 'fill-parent 'wrap-content -1 'centre 0) "fancy"
+                 30 (layout 'fill-parent 'wrap-content -1 'centre 0) ""
                  ;; convert to 0/1 for easier db storage
                  (lambda (v) (fn (if v 1 0)))))
 
 (define (mtoggle-button-scale id fn)
   (toggle-button (symbol->id id)
                  (mtext-lookup id)
-                 30 (layout 'fill-parent 'wrap-content 1 'centre 0) "fancy"
+                 30 (layout 'fill-parent 'wrap-content 1 'centre 0) ""
                  (lambda (v) (fn (if v 1 0)))))
 
 (define (mtext id)

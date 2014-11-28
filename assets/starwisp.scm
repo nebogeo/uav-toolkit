@@ -96,7 +96,8 @@
   (let ((id (new-id)))
     (draggable
      (make-id (string-append id "-code-block"))
-     'vertical wrap (list 120 255 120 50)
+     'vertical wrap (code-block-colour text)
+     (if (code-block-atom? text) "drag-only" "normal")
      (append
       (list
        (text-view 0 text 30 wrap))
@@ -105,10 +106,108 @@
        (msg "code-block callback called")
        text))))
 
+(define control-colour (list 255 200 100 255))
+(define control-functions
+  (list "when-timer" "when-moved-metres" "when-update" "when-pressed"))
 
+(define data-colour (list 200 255 100 255))
+(define data-functions
+  (list "save-entity" "filter" "load-entity"))
+
+(define sensor-colour (list 255 100 200 255))
+(define sensor-functions
+  (list "accelerometer" "gps" "camera" "orientation" "air-pressure" "light" "proximity" "altitude" "camera-horiz-angle" "camera-vert-angle"))
+
+(define maths-colour (list 200 100 255 255))
+(define maths-functions
+  (list "+" "-" "/" "*" "sin" "cos" "tan" "asin" "acos" "atan" "modulo" "pow" "300" "hello world"))
+
+(define display-colour (list 100 255 200 255))
+(define display-functions
+  (list "toast" "sound"))
+
+(define (code-block-colour text)
+  (cond
+   ((string-in-list-fast text control-functions) control-colour)
+   ((string-in-list-fast text data-functions) data-colour)
+   ((string-in-list-fast text sensor-functions) sensor-colour)
+   ((string-in-list-fast text maths-functions) maths-colour)
+   ((string-in-list-fast text display-functions) display-colour)
+   (else (list 255 0 255 255))))
+
+(define (code-block-atom? text)
+  (string-in-list-fast text (append '("300") sensor-functions)))
+
+
+(define (build-menu fns)
+  (append
+   (list
+    (update-widget
+     'linear-layout (get-id "block-menu")
+     'contents
+     (map
+      (lambda (fn)
+        (button (make-id (string-append fn "-button"))
+                fn 30 (layout 'fill-parent 'wrap-content 1 'left 5)
+                (lambda ()
+                  (list
+                   (update-widget
+                    'draggable (get-id "block-root")
+                    'contents (list (code-block fn '())))))))
+      fns)))
+   (map
+    (lambda (fn)
+      (update-widget 'button (get-id (string-append fn "-button"))
+                     'background-colour (code-block-colour (car fns))))
+    fns)
+   ))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; fragments
+
+(define-fragment-list
+  (fragment
+   "block-chooser"
+   (linear-layout
+    0 'vertical fill (list 0 0 0 0)
+    (list
+     (scroll-view
+      0 fillwrap
+      (list
+       (horiz
+        (mbutton-scale 'control (lambda () (build-menu control-functions)))
+        (mbutton-scale 'data (lambda () (build-menu data-functions)))
+        (mbutton-scale 'sensors (lambda () (build-menu sensor-functions)))
+        (mbutton-scale 'maths (lambda () (build-menu maths-functions)))
+        (mbutton-scale 'display (lambda () (build-menu display-functions)))
+        )))
+     (scroll-view-vert
+      0 fillwrap
+      (list
+       (linear-layout
+        (make-id "block-menu") 'vertical fill (list 0 0 0 0)
+        (list))))
+     ))
+   (lambda (fragment arg)
+     (activity-layout fragment))
+   (lambda (fragment arg)
+     (append
+      (build-menu control-functions)
+      (list
+       (update-widget 'button (get-id "control") 'background-colour control-colour)
+       (update-widget 'button (get-id "data") 'background-colour data-colour)
+       (update-widget 'button (get-id "sensors") 'background-colour sensor-colour)
+       (update-widget 'button (get-id "maths") 'background-colour maths-colour)
+       (update-widget 'button (get-id "display") 'background-colour display-colour)
+       )))
+   (lambda (fragment) '())
+   (lambda (fragment) '())
+   (lambda (fragment) '())
+   (lambda (fragment) '()))
+
+
+
+  )
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -301,17 +400,18 @@
    "vptest"
    (vert
     (horiz
-     (mbutton-scale
-      'add-block
-      (lambda ()
-        (list (update-widget
-               'draggable 99
-               'contents (list (code-block "foo" '()))))))
+     (mtoggle-button-scale
+      'add
+      (lambda (v)
+        (if (eqv? v 1)
+            (list (replace-fragment (make-id "menu-holder") "block-chooser"))
+            (list (replace-fragment (make-id "menu-holder") "")))))
+
      (mbutton-scale
       'eval
       (lambda ()
         (list
-         (walk-draggable "eval-walk" 99
+         (walk-draggable "eval-walk" (get-id "block-root")
                          (lambda (t)
                            (msg t)
                            (msg (eval t))
@@ -323,7 +423,7 @@
       'save
       (lambda ()
         (list
-         (walk-draggable "eval-walk" 99
+         (walk-draggable "eval-walk" (get-id "block-root")
                          (lambda (t)
                            (update-entity
                             db "code" code-version
@@ -332,43 +432,29 @@
                            (list
                             (toast (string-append "saved"))))))))
      )
+
+    (build-fragment
+     "" (make-id "menu-holder")
+     (layout 'fill-parent 'wrap-content -1 'left 0))
+
+    (spacer 20)
+
     (scroll-view-vert
-     0 (layout 'fill-parent 'wrap-content 1 'centre 0)
+     0 (layout 'fill-parent 'fill-parent -1 'centre 0)
      (list
       (draggable
-       99 'vertical (layout 'fill-parent 'fill-parent 1 'left 0) (list 255 255 255 255)
-       (list
-;        (code-block "toast" 20
-;                    (list
-;                     (code-block "number->string" 20
-;                                 (list
-;                                  (code-block "+" 20
-;                                              (list
-;                                               (code-block "3" 20 '())
-;                                               (code-block "4" 20 '())))
-;                                  ))))
-
-;        (code-block "toast" 20
-;                    (list
-;                     (code-block "string-append" 20
-;                                 (list
-;                                  (code-block "symbol->string" 20 (list (code-block "'hello" 20 '())))
-;                                  (code-block "symbol->string" 20 (list (code-block "'world" 20 '()))))
-;                     )))
-
-
-        ;            (list
-        ;             (code-block "2" "hello world" 20 '())))
-        )
+       (make-id "block-root")
+       'vertical (layout 'fill-parent 'fill-parent -1 'left 0) (list 255 255 0 20)
+       "drop-only"
+       (list)
        (lambda () "")))))
    (lambda (activity arg)
      (activity-layout activity))
    (lambda (activity arg)
      (list
       (update-widget
-       'draggable 99
-       'contents (list (load-code)))
-      ))
+       'draggable (get-id "block-root")
+       'contents (list (load-code)))))
    (lambda (activity) '())
    (lambda (activity) '())
    (lambda (activity) '())
