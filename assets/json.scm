@@ -214,7 +214,7 @@ d))))
         (parse-error token))))
 
 (define (parse-list)
-  (let loop ((res '(list)))
+  (let loop ((res '()))
     (let ((token (next-token)))
       (cond
        ((eqv? token 'close-brace) (reverse res))

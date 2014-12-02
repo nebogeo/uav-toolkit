@@ -54,7 +54,7 @@
     (set-setting! key "int" (+ r 1))
     r))
 
-(define code-version 4)
+(define code-version 5)
 
 (insert-entity-if-not-exists
  db "code" "program" "null" code-version
@@ -89,36 +89,77 @@
   (msg "inner:" code)
   (cond
    ((null? code) (code-block "list" '()))
-   ((number? code) (code-block (number->string code) '()))
+   ((number? code) (number-code-block code))
    ((symbol? code) (code-block (symbol->string code) '()))
-   ((string? code) (code-block code '()))
+   ((string? code)
+    (if (code-block-known? code)
+        (code-block code '())
+        (text-code-block code)))
    ((list? code)
-    ;; ignore first 'list'
-    (code-block (cadr code)
-                (map inner-code-blockify (cddr code))))
+    (if (string? (car code));; ignore first 'list'
+        (code-block (car code)
+                    (map inner-code-blockify (cdr code)))
+        (code-block "list" (map inner-code-blockify code))))
    (else (code-block "error" '()))))
 
 (define (text->code-block text)
   (msg "text->codeblock" text)
   (let ((code (json/parse-string text)))
-    (inner-code-blockify code)))
+    (map inner-code-blockify code)))
 
 (define (load-code)
-  (text->code-block (ktv-get (get-entity db "code" code-version) "text")))
+  (msg "loading code")
+  (text->code-block (dbg (ktv-get (get-entity db "code" code-version) "text"))))
 
 (define (code-block text children)
+  (if (equal? text "text")
+      (text-code-block text '())
+      (let ((id (new-id)))
+        (draggable
+         (make-id (string-append id "-code-block"))
+         'vertical wrap (code-block-colour text)
+         (if (code-block-atom? text) "drag-only" "normal")
+         (append
+          (list
+           (text-view 0 text 30 wrap))
+          children)
+         (lambda ()
+           (scheme->json
+            (list
+             (if (code-block-atom? text) 1 0) text)))))))
+
+(define (number-code-block num)
   (let ((id (new-id)))
     (draggable
      (make-id (string-append id "-code-block"))
-     'vertical wrap (code-block-colour text)
-     (if (code-block-atom? text) "drag-only" "normal")
-     (append
-      (list
-       (text-view 0 text 30 wrap))
-      children)
+     'vertical wrap (list 255 255 255 255)
+     "drag-only"
+     (list
+      (edit-text (make-id (string-append id "-edit"))
+                 (number->string num) 30 "numeric" wrap
+                 (lambda (v)
+                   ;; clearly this is dubious, but it works...!
+                   (set! num (string->number v))
+                   '())))
      (lambda ()
-       (msg "code-block callback called")
-       text))))
+       (scheme->json (list 1 num))))))
+
+(define (text-code-block text)
+  (let ((id (new-id)))
+    (draggable
+     (make-id (string-append id "-code-block"))
+     'vertical wrap (list 255 255 255 255)
+     "drag-only"
+     (list
+      (edit-text (make-id (string-append id "-edit"))
+                 text 30 "normal" wrap
+                 (lambda (v)
+                   ;; clearly this is dubious, but it works...!
+                   (set! text v)
+                   '())))
+     (lambda ()
+       (scheme->json (list 1 (string-append "\\\"" text "\\\"")))))))
+
 
 (define control-colour (list 255 200 100 255))
 (define control-functions
@@ -126,7 +167,7 @@
 
 (define data-colour (list 200 255 100 255))
 (define data-functions
-  (list "save-entity" "filter" "load-entity"))
+  (list "save-entity" "load-entity" "text"))
 
 (define sensor-colour (list 255 100 200 255))
 (define sensor-functions
@@ -148,6 +189,14 @@
    ((string-in-list-fast text maths-functions) maths-colour)
    ((string-in-list-fast text display-functions) display-colour)
    (else (list 255 0 255 255))))
+
+(define (code-block-known? text)
+  (or
+   (string-in-list-fast text control-functions)
+   (string-in-list-fast text data-functions)
+   (string-in-list-fast text sensor-functions)
+   (string-in-list-fast text maths-functions)
+   (string-in-list-fast text display-functions)))
 
 (define (code-block-atom? text)
   (string-in-list-fast text (append '("300") sensor-functions)))
@@ -425,24 +474,27 @@
       'eval
       (lambda ()
         (list
-         (walk-draggable "eval-walk" (get-id "block-root")
-                         (lambda (t)
-                           (msg t)
-                           (msg (eval t))
-                           (eval t)
-                           )))))
+         (walk-draggable
+          "eval-walk" (get-id "block-root")
+          (lambda (t)
+            (msg "evaling->" t)
+            (dbg (foldl (lambda (sexp r)
+                          (append (eval sexp) r)) '() t) )
+            )))))
      (mbutton-scale
       'save
       (lambda ()
         (list
-         (walk-draggable "eval-walk" (get-id "block-root")
-                         (lambda (t)
-                           (update-entity
-                            db "code" code-version
-                            (list
-                             (ktv "text" "varchar" (scheme->json t))))
-                           (list
-                            (toast (string-append "saved"))))))))
+         (walk-draggable
+          "eval-walk" (get-id "block-root")
+          (lambda (t)
+            (msg "save code")
+            (update-entity
+             db "code" code-version
+             (list
+              (ktv "text" "varchar" (dbg (scheme->json t)))))
+            (list
+             (toast (string-append "saved"))))))))
      )
 
     (build-fragment
@@ -453,14 +505,16 @@
     (mtext 'code)
 
     (scroll-view-vert
-     0 (layout 'fill-parent 'fill-parent -1 'centre 0)
+     0 (layout 'fill-parent 300 1 'centre 0)
      (list
       (draggable
        (make-id "block-root")
-       'vertical (layout 'fill-parent 'fill-parent -1 'left 0) (list 255 255 0 20)
+       'vertical (layout 'fill-parent 'fill-parent 1 'left 0) (list 255 255 0 20)
        "drop-only"
        (list)
-       (lambda () ""))))
+       (lambda ()
+         (msg "root cb")
+         (scheme->json (list 0 ""))))))
 
     (spacer 20)
 
@@ -469,7 +523,9 @@
      'vertical (layout 'fill-parent 'fill-parent -1 'left 0) (list 255 255 0 20)
      "drop-only-consume"
      (list (mtext 'rubbish-bin))
-     (lambda () ""))
+     (lambda ()
+       (msg "rubbish bin cb")
+       (scheme->json (list 0 ""))))
     )
    (lambda (activity arg)
      (activity-layout activity))
@@ -477,7 +533,7 @@
      (list
       (update-widget
        'draggable (get-id "block-root")
-       'contents (list (load-code)))))
+       'contents (load-code))))
    (lambda (activity) '())
    (lambda (activity) '())
    (lambda (activity) '())
