@@ -65,6 +65,8 @@ public class starwisp extends StarwispActivity
         ActivityManager.RegisterActivity("sensor",SensorActivity.class);
         ActivityManager.RegisterActivity("camera",CameraActivity.class);
         ActivityManager.RegisterActivity("vptest",VPTestActivity.class);
+        ActivityManager.RegisterActivity("review",ReviewActivity.class);
+        ActivityManager.RegisterActivity("review-item",ReviewItemActivity.class);
     };
 
     /** Called when the activity is first created. */

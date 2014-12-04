@@ -42,6 +42,15 @@
                                   "\n" token ": " value))))))
   (string-append "{" (_ l "") "\n" "}"))
 
+(define (escape-quotes str)
+  (foldl
+   (lambda (c r)
+     (if (equal? c #\")
+         (string-append r "\\" (string c))
+         (string-append r (string c))))
+   ""
+   (string->list str)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; test func for env

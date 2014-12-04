@@ -86,6 +86,15 @@
     ((eqv? n (car (car l))) (car l))
     (else (findv n (cdr l)))))
 
+(define (addv l i)
+  (cond
+   ((null? l) (list i))
+   ;; overwrite existing
+   ((eqv? (car i) (caar l)) (cons i (cdr l)))
+   (else
+    (cons (car l) (sorted-addv (cdr l) i)))))
+
+
 ;; find the index of an item in a flat list
 (define (index-find n l)
   (define (_ l i)
@@ -171,6 +180,15 @@
         result
         (iter (op (car rest) result) (cdr rest))))
   (iter initial seq))
+
+(define (index-map fn l)
+  (cadr (foldl
+         (lambda (e r)
+           (list
+            (+ (car r) 1)
+            (append (cadr r) (list (fn (car r) e)))))
+         (list 0 '())
+         l)))
 
 (define (insert-to i p l)
   (cond
@@ -457,7 +475,8 @@
 (define (drawlist-line colour width points) (list "line" colour width points))
 (define (drawlist-text text x y colour size align) (list "text" text x y colour size align))
 
-(define (toast msg) (list "toast" 0 "toast" (scheme->json msg)))
+(define (toast msg) (list "toast" 0 "toast" msg 30))
+(define (toast-size msg size) (list "toast" 0 "toast" msg size))
 (define (play-sound wav) (list "play-sound" 0 "play-sound" wav))
 (define (soundfile-start-recording wav) (list "soundfile-start-recording" 0 "soundfile-start-recording" wav))
 (define (soundfile-stop-recording) (list "soundfile-stop-recording" 0 "soundfile-stop-recording"))
@@ -467,8 +486,8 @@
 (define (make-directory name) (list "make-directory" 0 "make-directory" name))
 ;; treat this like a dialog so the callback fires
 (define (list-files name path fn) (list "list-files" 0 "list-files" name fn path))
-(define (gps-start name requested fn) (list "gps-start" 0 "gps-start" name fn requested))
-(define (sensors-start name fn) (list "sensors-start" 0 "sensors-start" name fn))
+(define (gps-start name fn) (list "gps-start" 0 "gps-start" name fn))
+(define (sensors-start name requested fn) (list "sensors-start" 0 "sensors-start" name fn requested))
 (define (sensors-stop) (list "sensors-stop" 0 "sensors-stop"))
 (define (sensors-get name fn) (list "sensors-get" 0 "sensors-get" name fn))
 (define (delayed name delay fn) (list "delayed" 0 "delayed" name fn delay))

@@ -19,7 +19,7 @@
 
 ;; colours
 (msg "starting up....")
-(define entity-types (list "village" "household" "individual" "child" "crop"))
+(define entity-types (list "user-data"))
 
 (define trans-col (list 0 0 0 0))
 (define colour-one (list 0 0 255 100))
@@ -68,7 +68,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-macro (when-timer . args)
+ (define-macro (when-timer . args)
   `(begin
      (define (when-timer-cb)
        ;;(msg ,(cdr args))
@@ -77,6 +77,79 @@
         (delayed "when-timer" (* 1000 ,(car args)) when-timer-cb)))
      (list
       (delayed "when-timer" (* 1000 ,(car args)) when-timer-cb))))
+
+(define (sensor->ktv-list d)
+  (let ((name (car d)))
+    (index-map
+     (lambda (i d)
+       (if (number? d)
+           (ktv (string-append name "-" (number->string i)) "real" d)
+           (ktv (string-append name "-" (number->string i)) "varchar" d)))
+     (cadr d))))
+
+(define (save-entity name . data)
+  (entity-create!
+   db "stream" "user-data"
+   (cons
+    (ktv "name" "varchar" name)
+    (foldl
+     (lambda (i r)
+       (if i (append r (sensor->ktv-list i)) r))
+     '()
+     (dbg data))))
+  (toast (string-append "saved entity: " name)))
+
+(define (show . data)
+  (if data
+      (toast-size
+       (foldl
+        (lambda (d r)
+          (if d
+              (string-append r " " (escape-quotes (scheme->json d)))
+              (string-append r " no data yet...")))
+        "" data)
+       10)
+      (toast "no data yet...")))
+
+(define (get-sensor-value type)
+  (set-current! 'sensors (set-add type (get-current 'sensors '())))
+  (let ((item (assv type (get-current 'sensor-values '()))))
+    (if item (list (sensor-type->string (car item)) (cadr item)) #f)))
+
+(define (accelerometer) (get-sensor-value sensor-accelerometer))
+(define (ambient-temperature) (get-sensor-value sensor-ambient-temperature))
+(define (game-rotation-vector) (get-sensor-value sensor-game-rotation-vector))
+(define (gravity) (get-sensor-value sensor-gravity))
+(define (gyroscope) (get-sensor-value sensor-gyroscope))
+(define (gyroscope-uncalibrated) (get-sensor-value sensor-gyroscope-uncalibrated))
+(define (light) (get-sensor-value sensor-light))
+(define (linear-acceleration) (get-sensor-value sensor-linear-acceleration))
+(define (magnetic-field) (get-sensor-value sensor-magnetic-field))
+(define (magnetic-field-uncalibrated) (get-sensor-value sensor-magnetic-field-uncalibrated))
+(define (orientation) (get-sensor-value sensor-orientation))
+(define (pressure) (get-sensor-value sensor-pressure))
+(define (proximity) (get-sensor-value sensor-pressure))
+(define (relative-humidity) (get-sensor-value sensor-relative-humidity))
+(define (rotation-vector) (get-sensor-value sensor-rotation-vector))
+(define (significant-motion) (get-sensor-value sensor-significant-motion))
+
+(define (sensor-type->string s)
+  (cond
+   ((equal? s sensor-accelerometer) "accelerometer")
+   ((equal? s sensor-ambient-temperature) "ambient-temperature")
+   ((equal? s sensor-game-rotation-vector) "game-rotation-vector")
+   ((equal? s sensor-gravity) "gravity")
+   ((equal? s sensor-gyroscope) "gyroscope")
+   ((equal? s sensor-gyroscope-uncalibrated) "gyroscope-uncalibrated")
+   ((equal? s sensor-light) "light")
+   ((equal? s sensor-linear-acceleration) "linear-acceleration")
+   ((equal? s sensor-magnetic-field) "magnetic-field")
+   ((equal? s sensor-magnetic-field-uncalibrated) "magnetic-field-uncalibrated")
+   ((equal? s sensor-orientation) "orientation")
+   ((equal? s sensor-pressure) "pressure")
+   ((equal? s sensor-proximity) "proximity")
+   (else "unknown-sensor")))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -171,7 +244,28 @@
 
 (define sensor-colour (list 255 100 200 255))
 (define sensor-functions
-  (list "accelerometer" "gps" "camera" "orientation" "air-pressure" "light" "proximity" "altitude" "camera-horiz-angle" "camera-vert-angle"))
+  (list
+  "accelerometer"
+  "ambient-temperature"
+  "game-rotation-vector"
+  "gravity"
+  "gyroscope"
+  "gyroscope-uncalibrated"
+  "light"
+  "linear-acceleration"
+  "magnetic-field"
+  "magnetic-field-uncalibrated"
+  "orientation"
+  "pressure"
+  "proximity"
+  "relative-humidity"
+  "rotation-vector"
+  "significant-motion"
+
+  "gps"
+  "camera"
+  "camera-horiz-angle"
+  "camera-vert-angle"))
 
 (define maths-colour (list 200 100 255 255))
 (define maths-functions
@@ -179,7 +273,7 @@
 
 (define display-colour (list 100 255 200 255))
 (define display-functions
-  (list "toast" "sound" "vibrate"))
+  (list "show" "sound" "vibrate"))
 
 (define (code-block-colour text)
   (cond
@@ -199,7 +293,7 @@
    (string-in-list-fast text display-functions)))
 
 (define (code-block-atom? text)
-  (string-in-list-fast text (append '("300") sensor-functions)))
+  (string-in-list-fast text (append '("300"))))
 
 
 (define (build-menu fns)
@@ -224,6 +318,108 @@
                      'background-colour (code-block-colour (car fns))))
     fns)
    ))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; review data stuff
+
+(define (medit-text-value id text value type fn)
+  (linear-layout
+   0 'horizontal
+   (layout 'fill-parent 'wrap-content -1 'centre 2)
+   (list 0 0 0 10)
+  (list
+   (text-view (make-id (string-append id "-title")) text 20 (layout 'fill-parent 'wrap-content 1 'right 0))
+   (edit-text (make-id id) value 20 type (layout 'fill-parent 'wrap-content 1 'centre 0) fn))))
+
+(define (review-build-contents uid entity)
+  (append
+   (foldl
+    (lambda (ktv r)
+      (if (or (equal? (ktv-key ktv) "unique_id")
+              (equal? (ktv-key ktv) "user")
+              (equal? (ktv-key ktv) "deleted"))
+          r
+          (append
+           r (cond
+              ((equal? (ktv-type ktv) "varchar")
+               ;; normal varchar
+               (list (medit-text-value (string-append uid (ktv-key ktv))
+                                       (string-append (ktv-key ktv) " : " (ktv-type ktv))
+                                       (ktv-value ktv) "normal"
+                                       (lambda (v)
+                                         (entity-set-value-mem! (ktv-key ktv) (ktv-type ktv) v) '()))))
+              ((equal? (ktv-type ktv) "file")
+               ;; normal varchar
+               (list (medit-text-value (string-append uid (ktv-key ktv))
+                                       (string-append (ktv-key ktv) " : " (ktv-type ktv))
+                                       (ktv-value ktv) "normal"
+                                       (lambda (v)
+                                         (entity-set-value-mem! (ktv-key ktv) (ktv-type ktv) v) '()))))
+              ((equal? (ktv-type ktv) "int")
+               (list (medit-text-value (string-append uid (ktv-key ktv))
+                                       (string-append (ktv-key ktv) " : " (ktv-type ktv))
+                                       (number->string (ktv-value ktv)) "numeric"
+                                       (lambda (v)
+                                         (entity-set-value-mem! (ktv-key ktv) (ktv-type ktv) v) '()))))
+              ((equal? (ktv-type ktv) "real")
+               (list (medit-text-value (string-append uid (ktv-key ktv))
+                                       (string-append (ktv-key ktv) " : " (ktv-type ktv))
+                                       ;; get around previous bug, should remove
+                                       (if (number? (ktv-value ktv))
+                                           (number->string (ktv-value ktv))
+                                           (ktv-value ktv)) "numeric"
+                                           (lambda (v)
+                                             (entity-set-value-mem! (ktv-key ktv) (ktv-type ktv) v) '()))))
+              (else (mtext 0 (string-append (ktv-type ktv) " not handled!!")) '())))))
+    '()
+    entity)
+   (list
+    (horiz
+     (button (make-id "review-item-cancel") "Cancel" 20 (layout 'fill-parent 'wrap-content 1 'centre 0) (lambda () (list (finish-activity 0))))
+     (button (make-id (string-append uid "-save")) "Save" 20 (layout 'fill-parent 'wrap-content 1 'centre 0)
+              (lambda ()
+                (list
+                 (alert-dialog
+                  "review-ok"
+                  (string-append "Are you sure?")
+                  (lambda (v)
+                    (cond
+                     ((eqv? v 1)
+                      (entity-update-values!)
+                      (list))
+                     (else (list))))))))))))
+
+
+(define (review-item-build)
+  (let ((uid (entity-get-value "unique_id")))
+    (list
+     (update-widget
+      'linear-layout
+      (get-id "review-item-container")
+      'contents
+      (review-build-contents
+       uid (get-current 'entity-values '()))))))
+
+(define (review-update-list entity-type)
+  (list
+   (update-widget
+    'linear-layout (get-id "review-list") 'contents
+    (map
+     (lambda (e)
+       (let* ((uid (ktv-get e "unique_id")))
+         (msg e)
+         (button
+          (make-id (string-append "review-" uid))
+          (ktv-get e "name")
+          20 fillwrap
+          (lambda ()
+            (entity-init! db "stream" entity-type (get-entity-by-unique db "stream" uid))
+            (list (start-activity "review-item" 0 ""))))))
+     (db-filter-only-inc-deleted db "stream" entity-type
+                                 (list)
+                                 (list (list "name" "varchar")))))))
+
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; fragments
@@ -311,6 +507,12 @@
       30 (layout 'fill-parent 'wrap-content -1 'centre 5)
       (lambda ()
         (list (start-activity "vptest" 0 ""))))
+     (button
+      (make-id "review")
+      "View data"
+      30 (layout 'fill-parent 'wrap-content -1 'centre 5)
+      (lambda ()
+        (list (start-activity "review" 0 ""))))
 
      ))))
     )
@@ -348,6 +550,23 @@
         (list
          (sensors-start
           "start-sensors"
+          (dbg (list
+           sensor-accelerometer
+           sensor-ambient-temperature
+           sensor-game-rotation-vector
+           sensor-gravity
+           sensor-gyroscope
+           sensor-gyroscope-uncalibrated
+           sensor-light
+           sensor-linear-acceleration
+           sensor-magnetic-field
+           sensor-magnetic-field-uncalibrated
+           sensor-orientation
+           sensor-pressure
+           sensor-proximity
+           sensor-relative-humidity
+           sensor-rotation-vector
+           sensor-significant-motion))
           (lambda (data)
             (list
              (update-widget
@@ -478,9 +697,20 @@
           "eval-walk" (get-id "block-root")
           (lambda (t)
             (msg "evaling->" t)
-            (dbg (foldl (lambda (sexp r)
-                          (append (eval sexp) r)) '() t) )
-            )))))
+            (append
+             (dbg (foldl (lambda (sexp r)
+                           (append (eval sexp) r)) '() t) )
+             (list
+              (sensors-start
+               "start-sensors"
+               (dbg (get-current 'sensors '()))
+               (lambda (data)
+                 (set-current! 'sensor-values
+                               (addv
+                                (get-current 'sensor-values '())
+                                (list (list-ref data 1)
+                                      (cdr (cdr (cdr (cdr data)))))))
+                 '())))))))))
      (mbutton-scale
       'save
       (lambda ()
@@ -540,6 +770,63 @@
    (lambda (activity) '())
    (lambda (activity requestcode resultcode)
      (list)))
+
+  (activity
+   "review"
+   (vert
+    (horiz
+     (text-view 0 "View data" 40 (layout 'fill-parent 'wrap-content 1 'left 0))
+     (spinner (make-id "entity-type-spinner")
+              entity-types
+              (layout 'fill-parent 'wrap-content 1 'centre 0)
+              (lambda (v)
+                (review-update-list
+                 (list-ref entity-types v)))))
+
+
+    (scroll-view-vert
+     0 (layout 'fill-parent 'wrap-content 1 'left 0)
+     (list
+      (linear-layout
+       (make-id "review-list")
+       'vertical
+       (layout 'fill-parent 'fill-parent 1 'left 0)
+       (list 0 0 0 0)
+       (list))
+      )))
+   (lambda (activity arg)
+     (activity-layout activity))
+   (lambda (activity arg) '())
+   (lambda (activity) '())
+   (lambda (activity) '())
+   (lambda (activity) '())
+   (lambda (activity) '())
+   (lambda (activity requestcode resultcode) '()))
+
+  (activity
+   "review-item"
+   (vert
+    (text-view (make-id "title") "Edit item" 40 fillwrap)
+    (scroll-view-vert
+     0 (layout 'fill-parent 'wrap-content 1 'left 0)
+     (list
+      (linear-layout
+       (make-id "review-item-container")
+       'vertical
+       (layout 'fill-parent 'wrap-content 1 'left 0)
+       (list 0 0 0 0)
+       (list))))
+    )
+   (lambda (activity arg)
+     (activity-layout activity))
+   (lambda (activity arg)
+     (review-item-build))
+   (lambda (activity) '())
+   (lambda (activity) '())
+   (lambda (activity) '())
+   (lambda (activity) '())
+   (lambda (activity requestcode resultcode) '()))
+
 
 
   )
