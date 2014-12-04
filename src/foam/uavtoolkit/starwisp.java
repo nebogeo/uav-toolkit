@@ -110,6 +110,7 @@ public class starwisp extends StarwispActivity
 
         // pass in a bunch of useful stuff
         m_Scheme.eval("(define dirname \"/sdcard/"+dirname+"\")(define date-day "+day+") (define date-month "+month+") (define date-year "+year+")");
+        DeclareSensors();
 
         Log.i("starwisp","started, now running starwisp.scm...");
         m_Scheme.eval(m_Scheme.readRawTextFile(this, "translations.scm"));

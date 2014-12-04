@@ -457,7 +457,7 @@
 (define (drawlist-line colour width points) (list "line" colour width points))
 (define (drawlist-text text x y colour size align) (list "text" text x y colour size align))
 
-(define (toast msg) (list "toast" 0 "toast" msg))
+(define (toast msg) (list "toast" 0 "toast" (scheme->json msg)))
 (define (play-sound wav) (list "play-sound" 0 "play-sound" wav))
 (define (soundfile-start-recording wav) (list "soundfile-start-recording" 0 "soundfile-start-recording" wav))
 (define (soundfile-stop-recording) (list "soundfile-stop-recording" 0 "soundfile-stop-recording"))
@@ -467,7 +467,7 @@
 (define (make-directory name) (list "make-directory" 0 "make-directory" name))
 ;; treat this like a dialog so the callback fires
 (define (list-files name path fn) (list "list-files" 0 "list-files" name fn path))
-(define (gps-start name fn) (list "gps-start" 0 "gps-start" name fn))
+(define (gps-start name requested fn) (list "gps-start" 0 "gps-start" name fn requested))
 (define (sensors-start name fn) (list "sensors-start" 0 "sensors-start" name fn))
 (define (sensors-stop) (list "sensors-stop" 0 "sensors-stop"))
 (define (sensors-get name fn) (list "sensors-get" 0 "sensors-get" name fn))
