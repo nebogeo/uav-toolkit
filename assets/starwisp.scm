@@ -410,14 +410,15 @@
          (msg e)
          (button
           (make-id (string-append "review-" uid))
-          (ktv-get e "name")
+          (string-append (ktv-get e "name") " " (ktv-get e "time"))
           20 fillwrap
           (lambda ()
             (entity-init! db "stream" entity-type (get-entity-by-unique db "stream" uid))
             (list (start-activity "review-item" 0 ""))))))
      (db-filter-only-inc-deleted db "stream" entity-type
                                  (list)
-                                 (list (list "name" "varchar")))))))
+                                 (list (list "name" "varchar")
+                                       (list "time" "varchar")))))))
 
 
 
