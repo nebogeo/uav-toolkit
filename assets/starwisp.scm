@@ -681,82 +681,99 @@
 
   (activity
    "vptest"
-   (vert
-    (horiz
-     (mtoggle-button-scale
-      'add
-      (lambda (v)
-        (if (eqv? v 1)
-            (list (replace-fragment (make-id "menu-holder") "block-chooser"))
-            (list (replace-fragment (make-id "menu-holder") "")))))
 
-     (mbutton-scale
-      'eval
-      (lambda ()
-        (list
-         (walk-draggable
-          "eval-walk" (get-id "block-root")
-          (lambda (t)
-            (msg "evaling->" t)
-            (append
-             (dbg (foldl (lambda (sexp r)
-                           (append (eval sexp) r)) '() t) )
-             (list
-              (sensors-start
-               "start-sensors"
-               (dbg (get-current 'sensors '()))
-               (lambda (data)
-                 (set-current! 'sensor-values
-                               (addv
-                                (get-current 'sensor-values '())
-                                (list (list-ref data 1)
-                                      (cdr (cdr (cdr (cdr data)))))))
-                 '())))))))))
-     (mbutton-scale
-      'save
-      (lambda ()
-        (list
-         (walk-draggable
-          "eval-walk" (get-id "block-root")
-          (lambda (t)
-            (msg "save code")
-            (update-entity
-             db "code" code-version
-             (list
-              (ktv "text" "varchar" (dbg (scheme->json t)))))
-            (list
-             (toast (string-append "saved"))))))))
-     )
-
-    (build-fragment
-     "" (make-id "menu-holder")
-     (layout 'fill-parent 'wrap-content -1 'left 0))
-
-    (spacer 20)
-    (mtext 'code)
-
-    (scroll-view-vert
-     0 (layout 'fill-parent 300 1 'centre 0)
-     (list
-      (draggable
-       (make-id "block-root")
-       'vertical (layout 'fill-parent 'fill-parent 1 'left 0) (list 255 255 0 20)
-       "drop-only"
-       (list)
+  (vert-fill
+   (relative
+    '(("parent-top"))
+    (list 0 0 0 0)
+    (vert
+     (horiz
+      (mtoggle-button-scale
+       'add
+       (lambda (v)
+         (if (eqv? v 1)
+             (list (replace-fragment (make-id "menu-holder") "block-chooser"))
+             (list (replace-fragment (make-id "menu-holder") "")))))
+      
+      (mbutton-scale
+       'eval
        (lambda ()
-         (msg "root cb")
-         (scheme->json (list 0 ""))))))
+         (list
+          (walk-draggable
+           "eval-walk" (get-id "block-root")
+           (lambda (t)
+             (msg "evaling->" t)
+             (append
+              (dbg (foldl (lambda (sexp r)
+                            (append (eval sexp) r)) '() t) )
+              (list
+               (sensors-start
+                "start-sensors"
+                (dbg (get-current 'sensors '()))
+                (lambda (data)
+                  (set-current! 'sensor-values
+                                (addv
+                                 (get-current 'sensor-values '())
+                                 (list (list-ref data 1)
+                                       (cdr (cdr (cdr (cdr data)))))))
+                  '())))))))))
+      (mbutton-scale
+       'save
+       (lambda ()
+         (list
+          (walk-draggable
+           "eval-walk" (get-id "block-root")
+           (lambda (t)
+             (msg "save code")
+             (update-entity
+              db "code" code-version
+              (list
+               (ktv "text" "varchar" (dbg (scheme->json t)))))
+             (list
+              (toast (string-append "saved"))))))))
+      )
+     
+     (build-fragment
+      "" (make-id "menu-holder")
+      (layout 'fill-parent 'wrap-content -1 'left 0))))
 
-    (spacer 20)
 
-    (draggable
-     (make-id "block-bin")
-     'vertical (layout 'fill-parent 'fill-parent -1 'left 0) (list 255 255 0 20)
-     "drop-only-consume"
-     (list (mtext 'rubbish-bin))
-     (lambda ()
-       (msg "rubbish bin cb")
-       (scheme->json (list 0 ""))))
+
+
+   (scroll-view-vert
+    0 (layout 'fill-parent 'fill-parent 1 'centre 0)
+    (list
+     (vert-fill
+      (mtext 'code)
+
+      (scroll-view-vert
+       0 (layout 'fill-parent 'fill-parent 1 'centre 0)
+       (list
+        (draggable
+         (make-id "block-root")
+         'vertical (layout 'fill-parent 'fill-parent 1 'left 0) (list 255 255 0 20)
+         "drop-only"
+         (list)
+         (lambda ()
+           (msg "root cb")
+           (scheme->json (list 0 "")))))))))
+
+
+
+
+   (relative
+    '(("parent-bottom"))
+    (list 0 0 0 0)
+     (vert
+      
+      (draggable
+       (make-id "block-bin")
+       'vertical (layout 'fill-parent 'fill-parent -1 'left 0) (list 255 255 0 20)
+       "drop-only-consume"
+       (list (mtext 'rubbish-bin))
+       (lambda ()
+         (msg "rubbish bin cb")
+         (scheme->json (list 0 "")))))) 
     )
    (lambda (activity arg)
      (activity-layout activity))
