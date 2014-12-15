@@ -185,21 +185,24 @@
   (text->code-block (dbg (ktv-get (get-entity db "code" code-version) "text"))))
 
 (define (code-block text children)
-  (if (equal? text "text")
-      (text-code-block text '())
-      (let ((id (new-id)))
-        (draggable
-         (make-id (string-append id "-code-block"))
-         'vertical wrap (code-block-colour text)
-         (if (code-block-atom? text) "drag-only" "normal")
-         (append
+  (cond 
+   ;; dispatch to special forms
+   ((equal? text "text") (text-code-block text '()))
+   ((equal? text "camera") (camera-code-block text))
+   (else
+    (let ((id (new-id)))
+      (draggable
+       (make-id (string-append id "-code-block"))
+       'vertical wrap (code-block-colour text)
+       (if (code-block-atom? text) "drag-only" "normal")
+       (append
+        (list
+         (text-view 0 text 30 wrap))
+        children)
+       (lambda ()
+         (scheme->json
           (list
-           (text-view 0 text 30 wrap))
-          children)
-         (lambda ()
-           (scheme->json
-            (list
-             (if (code-block-atom? text) 1 0) text)))))))
+           (if (code-block-atom? text) 1 0) text))))))))
 
 (define (number-code-block num)
   (let ((id (new-id)))
@@ -232,6 +235,20 @@
                    '())))
      (lambda ()
        (scheme->json (list 1 (string-append "\\\"" text "\\\"")))))))
+
+
+(define (camera-code-block text)
+  (let ((id (new-id)))
+    (draggable
+     (make-id (string-append id "-code-block"))
+     'vertical wrap (list 255 255 255 255)
+     "drag-only"
+     (list
+      (camera-preview (make-id "camerap") (layout 'fill-parent 320 1 'left 0)))
+
+     (lambda ()
+       (list 1 text)))))
+
 
 
 (define control-colour (list 255 200 100 255))
