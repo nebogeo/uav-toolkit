@@ -10,4 +10,6 @@
    (list 'display (list "display"))
    (list 'rubbish-bin (list "rubbish bin"))
    (list 'code (list "code"))
+   (list 'programs (list "programs"))
+   (list 'list-empty (list "no programs yet"))
    ))

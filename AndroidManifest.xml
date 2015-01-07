@@ -21,6 +21,7 @@
     <activity android:name="foam.uavtoolkit.SensorActivity" android:configChanges="orientation"></activity>
     <activity android:name="foam.uavtoolkit.CameraActivity" android:configChanges="orientation"></activity>
     <activity android:name="foam.uavtoolkit.VPTestActivity" android:configChanges="orientation"></activity>
+    <activity android:name="foam.uavtoolkit.LockActivity" android:configChanges="orientation"></activity>
     <activity android:name="foam.uavtoolkit.ReviewActivity" android:configChanges="orientation"></activity>
     <activity android:name="foam.uavtoolkit.ReviewItemActivity" android:configChanges="orientation"></activity>
 

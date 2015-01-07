@@ -28,7 +28,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; persistent database
 
-(define db "/sdcard/uav-toolkit/uav-toolkit.db")
+(define db "/sdcard/uavtoolkit/uav-toolkit.db")
 (db-open db)
 (setup db "local")
 (setup db "code")
@@ -59,6 +59,7 @@
 (insert-entity-if-not-exists
  db "code" "program" "null" code-version
  (list
+  (ktv "name" "varchar" "A program")
   (ktv "text" "varchar" (scheme->json '(when-timer 3 (toast (number->string (+ 2 3 4))))))))
 
 (set-current! 'user-id (get-setting-value "user-id"))
@@ -72,9 +73,9 @@
   `(begin
      (define (when-timer-cb)
        ;;(msg ,(cdr args))
-       (list
+       (append
         ,(cadr args)
-        (delayed "when-timer" (* 1000 ,(car args)) when-timer-cb)))
+        (list (delayed "when-timer" (* 1000 ,(car args)) when-timer-cb))))
      (list
       (delayed "when-timer" (* 1000 ,(car args)) when-timer-cb))))
 
@@ -88,16 +89,38 @@
      (cadr d))))
 
 (define (save-entity name . data)
+  (define photo-name "")
   (entity-create!
    db "stream" "user-data"
    (cons
     (ktv "name" "varchar" name)
     (foldl
      (lambda (i r)
-       (if i (append r (sensor->ktv-list i)) r))
+       (cond
+        ((not i) r)
+        ((equal? (car i) "take-photo")
+         ;; take a photo at the end...
+         ;; only set the filename once, reuse it for multiple references
+         (when (equal? photo-name "")
+               (msg "setting photo-name to" (cadr i))
+               (set! photo-name (cadr i)))
+         (append r (list (ktv "photo" "file" photo-name))))
+        (else
+         (append r (sensor->ktv-list i)) r)))
      '()
      (dbg data))))
-  (toast (string-append "saved entity: " name)))
+  (append
+   (if (not (equal? photo-name ""))
+       (list (update-widget 'camera-preview (get-current 'camera-preview-id 0) 'take-picture-cont photo-name))
+       '())
+   (list (toast (string-append "saved entity: " name)))))
+
+
+(define (camera)
+  (let ((t (time-of-day)))
+    (list "take-photo" (string-append "files/photo-"
+                                      (number->string (car t)) "-" (number->string (cadr t))
+                                      ".jpg"))))
 
 (define (show . data)
   (if data
@@ -112,7 +135,9 @@
       (toast "no data yet...")))
 
 (define (get-sensor-value type)
+  ;; add to the list of sensor if it's not there yet
   (set-current! 'sensors (set-add type (get-current 'sensors '())))
+  ;; return a sensor type/data list
   (let ((item (assv type (get-current 'sensor-values '()))))
     (if item (list (sensor-type->string (car item)) (cadr item)) #f)))
 
@@ -182,13 +207,12 @@
 
 (define (load-code)
   (msg "loading code")
-  (text->code-block (dbg (ktv-get (get-entity db "code" code-version) "text"))))
+  (text->code-block (dbg (entity-get-value "text"))))
 
 (define (code-block text children)
-  (cond 
+  (cond
    ;; dispatch to special forms
    ((equal? text "text") (text-code-block text '()))
-   ((equal? text "camera") (camera-code-block text))
    (else
     (let ((id (new-id)))
       (draggable
@@ -237,17 +261,23 @@
        (scheme->json (list 1 (string-append "\\\"" text "\\\"")))))))
 
 
-(define (camera-code-block text)
-  (let ((id (new-id)))
-    (draggable
-     (make-id (string-append id "-code-block"))
-     'vertical wrap (list 255 255 255 255)
-     "drag-only"
-     (list
-      (camera-preview (make-id "camerap") (layout 'fill-parent 320 1 'left 0)))
-
-     (lambda ()
-       (list 1 text)))))
+;; top level eval
+(define (eval-blocks t)
+  (msg "evaling->" t)
+  (append
+   (dbg (foldl (lambda (sexp r)
+                 (append (eval sexp) r)) '() t) )
+   (list
+    (sensors-start
+     "start-sensors"
+     (dbg (get-current 'sensors '()))
+     (lambda (data)
+       (set-current! 'sensor-values
+                     (addv
+                      (get-current 'sensor-values '())
+                      (list (list-ref data 1)
+                            (cdr (cdr (cdr (cdr data)))))))
+       '())))))
 
 
 
@@ -519,12 +549,15 @@
       30 (layout 'fill-parent 'wrap-content -1 'centre 5)
       (lambda ()
         (list (start-activity "camera" 0 ""))))
-     (button
-      (make-id "vis-prog")
-      "Visual programming"
-      30 (layout 'fill-parent 'wrap-content -1 'centre 5)
-      (lambda ()
-        (list (start-activity "vptest" 0 ""))))
+
+     (build-list-widget db "code" 'programs (list "name") "program" "vptest"
+                        (lambda () #f)
+                        (lambda ()
+                          (list
+                           (ktv "name" "varchar" "a program")
+                           (ktv "text" "varchar" "")))
+                        )
+
      (button
       (make-id "review")
       "View data"
@@ -538,7 +571,9 @@
    (lambda (activity arg)
      (activity-layout activity))
    (lambda (activity arg)
-     (list))
+     (list
+      (update-list-widget db "code" (list "name") "program" "vptest" #f)
+      ))
    (lambda (activity) '())
    (lambda (activity) '())
    (lambda (activity) '())
@@ -699,7 +734,7 @@
   (activity
    "vptest"
 
-  (vert-fill
+  (vert
    (relative
     '(("parent-top"))
     (list 0 0 0 0)
@@ -711,7 +746,7 @@
          (if (eqv? v 1)
              (list (replace-fragment (make-id "menu-holder") "block-chooser"))
              (list (replace-fragment (make-id "menu-holder") "")))))
-      
+
       (mbutton-scale
        'eval
        (lambda ()
@@ -719,21 +754,7 @@
           (walk-draggable
            "eval-walk" (get-id "block-root")
            (lambda (t)
-             (msg "evaling->" t)
-             (append
-              (dbg (foldl (lambda (sexp r)
-                            (append (eval sexp) r)) '() t) )
-              (list
-               (sensors-start
-                "start-sensors"
-                (dbg (get-current 'sensors '()))
-                (lambda (data)
-                  (set-current! 'sensor-values
-                                (addv
-                                 (get-current 'sensor-values '())
-                                 (list (list-ref data 1)
-                                       (cdr (cdr (cdr (cdr data)))))))
-                  '())))))))))
+             (eval-blocks t))))))
       (mbutton-scale
        'save
        (lambda ()
@@ -742,14 +763,12 @@
            "eval-walk" (get-id "block-root")
            (lambda (t)
              (msg "save code")
-             (update-entity
-              db "code" code-version
-              (list
-               (ktv "text" "varchar" (dbg (scheme->json t)))))
+             (entity-set-value! "text" "varchar" (dbg (scheme->json t)))
+             (entity-update-values!)
              (list
               (toast (string-append "saved"))))))))
       )
-     
+
      (build-fragment
       "" (make-id "menu-holder")
       (layout 'fill-parent 'wrap-content -1 'left 0))))
@@ -776,35 +795,118 @@
            (scheme->json (list 0 "")))))))))
 
 
-
-
    (relative
     '(("parent-bottom"))
     (list 0 0 0 0)
      (vert
-      
+
       (draggable
        (make-id "block-bin")
-       'vertical (layout 'fill-parent 'fill-parent -1 'left 0) (list 255 255 0 20)
+       'vertical (layout 'fill-parent 'wrap-content 1 'left 0) (list 255 255 0 20)
        "drop-only-consume"
        (list (mtext 'rubbish-bin))
        (lambda ()
          (msg "rubbish bin cb")
-         (scheme->json (list 0 "")))))) 
-    )
+         (scheme->json (list 0 ""))))
+
+      (horiz
+       (button (make-id "lock-button")
+               "Flight mode" 30 (layout 'fill-parent 'wrap-content 1 'left 5)
+               (lambda ()
+                 (alert-dialog
+                  "vptest-lock"
+                  "Enter flight mode: phone needs hard reset to stop the program - are you sure?"
+                  (lambda (v)
+                    (cond
+                     ((eqv? v 1)
+                      (list
+                       (update-widget 'camera-preview (get-id "camerap") 'shutdown 0)
+                       (start-activity "lock" 0 ""))
+                      (else
+                       (list))))))))
+
+
+       (button (make-id "exit-button")
+               "Exit" 30 (layout 'fill-parent 'wrap-content 1 'left 5)
+               (lambda ()
+                 (list
+                  (alert-dialog
+                   "vptest-exit"
+                   "Exit running program: are you sure?"
+                   (lambda (v)
+                     (cond
+                      ((eqv? v 1)
+                      (list
+                       ;; shut it all down
+                       (delayed "when-timer" 1000 (lambda () '()))
+                       (finish-activity 1)))
+                      (else
+                       (list)))))))))))
+
+   (camera-preview (make-id "camerap") (layout 1 1 1 'left 0))
+
+   )
    (lambda (activity arg)
      (activity-layout activity))
    (lambda (activity arg)
+     (entity-init! db "code" "program" (get-entity-by-unique db "sync" arg))
+     (set-current! 'camera-preview-id (get-id "camerap"))
      (list
       (update-widget
        'draggable (get-id "block-root")
        'contents (load-code))))
+   (lambda (activity)
+     (list (update-widget 'camera-preview (get-id "camerap") 'shutdown 0)))
    (lambda (activity) '())
+   (lambda (activity)
+     (list (update-widget 'camera-preview (get-id "camerap") 'shutdown 0)))
+   (lambda (activity)
+     (list (update-widget 'camera-preview (get-id "camerap") 'shutdown 0)))
+   (lambda (activity requestcode resultcode) '()))
+
+
+  (activity
+   "lock"
+   (vert
+    (button (make-id "exit-button")
+            "Exit" 30 (layout 'fill-parent 'wrap-content 1 'left 5)
+            (lambda ()
+              (list
+               ;; shut it all down
+               (delayed "when-timer" 1000 (lambda () '()))
+               (finish-activity 1))))
+
+    (draggable
+     (make-id "block-root")
+     'vertical (layout 'fill-parent 'fill-parent 1 'left 0) (list 255 255 0 20)
+     "drop-only"
+     (list)
+     (lambda ()
+       (msg "root cb")
+       (scheme->json (list 0 ""))))
+
+    (camera-preview (make-id "lock-camerap") (layout 1 1 1 'left 0))
+    )
+   (lambda (activity arg)
+     (activity-layout activity))
+   (lambda (activity arg)
+     (set-current! 'camera-preview-id (get-id "lock-camerap"))
+     (list
+      (update-widget
+       'draggable (get-id "block-root")
+       'contents (load-code))
+      (walk-draggable
+       "lock-eval-walk" (get-id "block-root")
+       (lambda (t)
+         (eval-blocks t)))))
+   (lambda (activity)
+     (list (update-widget 'camera-preview (get-id "lock-camerap") 'shutdown 0)))
    (lambda (activity) '())
-   (lambda (activity) '())
-   (lambda (activity) '())
-   (lambda (activity requestcode resultcode)
-     (list)))
+   (lambda (activity)
+     (list (update-widget 'camera-preview (get-id "lock-camerap") 'shutdown 0)))
+   (lambda (activity)
+     (list (update-widget 'camera-preview (get-id "lock-camerap") 'shutdown 0)))
+   (lambda (activity requestcode resultcode) '()))
 
   (activity
    "review"
@@ -861,7 +963,6 @@
    (lambda (activity) '())
    (lambda (activity) '())
    (lambda (activity requestcode resultcode) '()))
-
 
 
   )

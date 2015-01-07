@@ -65,6 +65,7 @@ public class starwisp extends StarwispActivity
         ActivityManager.RegisterActivity("sensor",SensorActivity.class);
         ActivityManager.RegisterActivity("camera",CameraActivity.class);
         ActivityManager.RegisterActivity("vptest",VPTestActivity.class);
+        ActivityManager.RegisterActivity("lock",LockActivity.class);
         ActivityManager.RegisterActivity("review",ReviewActivity.class);
         ActivityManager.RegisterActivity("review-item",ReviewItemActivity.class);
     };
@@ -73,7 +74,7 @@ public class starwisp extends StarwispActivity
     @Override
     public void onCreate(Bundle savedInstanceState)
     {
-        String dirname = "uav-toolkit/";
+        String dirname = "uavtoolkit/";
         m_AppDir = "/sdcard/"+dirname;
         File appdir = new File(m_AppDir);
         appdir.mkdirs();
