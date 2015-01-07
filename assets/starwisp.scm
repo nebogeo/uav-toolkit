@@ -116,16 +116,19 @@
                                       ".jpg"))))
 
 (define (show . data)
-  (if data
-      (toast-size
-       (dbg (foldl
-        (lambda (d r)
-          (if d
-              (string-append r " " (escape-quotes (scheme->json d)))
-              (string-append r " no data yet...")))
-        "" (dbg data)))
-       10)
-      (toast "no data yet...")))
+  (list
+   (if data
+       (if (string? data)
+           (toast data)
+           (toast-size
+            (dbg (foldl
+                  (lambda (d r)
+                    (if d
+                        (string-append r " " (escape-quotes (scheme->json d)))
+                        (string-append r " no data yet...")))
+                  "" (dbg data)))
+            10))
+       (toast "no data yet..."))))
 
 (define (get-sensor-value type)
   ;; add to the list of sensor if it's not there yet
@@ -253,7 +256,7 @@
                    '())))
      (lambda ()
        (msg "running text code block cb")
-       (dbg (scheme->json (list 1 (dbg (string-append "'" text "'")))))))))
+       (dbg (scheme->json (list 1 (dbg (string-append "\\\"" text "\\\"")))))))))
 
 
 ;; top level eval
@@ -552,7 +555,7 @@
                         (lambda ()
                           (list
                            (ktv "name" "varchar" "a program")
-                           (ktv "text" "varchar" (scheme->json '(when-timer 3 (show "hello world"))))))
+                           (ktv "text" "varchar" (scheme->json '((when-timer 3 (show "hello world")))))))
                         )
 
      (button
@@ -808,7 +811,7 @@
 
       (horiz
        (button (make-id "lock-button")
-               "Flight mode" 30 (layout 'fill-parent 'wrap-content 1 'left 5)
+               "Flight mode" 20 (layout 'fill-parent 'wrap-content 1 'left 5)
                (lambda ()
                  (alert-dialog
                   "vptest-lock"
@@ -838,7 +841,9 @@
                        (delayed "when-timer" 1000 (lambda () '()))
                        (finish-activity 1)))
                       (else
-                       (list)))))))))))
+                       (list)))))))))
+
+      (delete-button)))
 
    (camera-preview (make-id "camerap") (layout 1 1 1 'left 0))
 

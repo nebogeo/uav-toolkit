@@ -13,4 +13,6 @@
    (list 'programs (list "programs"))
    (list 'list-empty (list "no programs yet"))
    (list 'program-name (list "program name"))
+   (list 'delete (list "delete"))
+   (list 'delete-are-you-sure (list "Are you sure you want to delete this program"))
    ))
