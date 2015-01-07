@@ -35,6 +35,13 @@
 
 (define settings-entity-id-version 2)
 
+(insert-entity-if-not-exists
+db "local" "app-settings" "null" settings-entity-id-version
+(list
+(ktv "user-id" "varchar" "not set")
+(ktv "language" "int" 0)
+(ktv "current-village" "varchar" "none")))
+
 (define (get-setting-value name)
   (ktv-get (get-entity db "local" settings-entity-id-version) name))
 
@@ -48,12 +55,6 @@
     r))
 
 (define code-version 5)
-
-(insert-entity-if-not-exists
- db "code" "program" "null" code-version
- (list
-  (ktv "name" "varchar" "A program")
-  (ktv "text" "varchar" (scheme->json '(when-timer 3 (toast (number->string (+ 2 3 4))))))))
 
 (set-current! 'user-id (get-setting-value "user-id"))
 (set! i18n-lang (get-setting-value "language"))
@@ -357,7 +358,7 @@
                   (list
                    (update-widget
                     'draggable (get-id "block-root")
-                    'contents (list (code-block fn '())))))))
+                    'contents-add (list (code-block fn '())))))))
       fns)))
    (map
     (lambda (fn)
@@ -813,15 +814,16 @@
        (button (make-id "lock-button")
                "Flight mode" 20 (layout 'fill-parent 'wrap-content 1 'left 5)
                (lambda ()
-                 (alert-dialog
-                  "vptest-lock"
-                  "Enter flight mode: phone needs hard reset to stop the program - are you sure?"
-                  (lambda (v)
-                    (cond
-                     ((eqv? v 1)
-                      (list
-                       (update-widget 'camera-preview (get-id "camerap") 'shutdown 0)
-                       (start-activity "lock" 0 ""))
+                 (list
+                  (alert-dialog
+                   "vptest-lock"
+                   "Enter flight mode: phone needs hard reset to stop the program - are you sure?"
+                   (lambda (v)
+                     (cond
+                      ((eqv? v 1)
+                       (list
+                        (update-widget 'camera-preview (get-id "camerap") 'shutdown 0)
+                        (start-activity "lock" 0 "")))
                       (else
                        (list))))))))
 
@@ -873,16 +875,17 @@
    "lock"
    (vert
     (button (make-id "exit-button")
-            "Exit" 30 (layout 'fill-parent 'wrap-content 1 'left 5)
+            "Exit" 20 (layout 50 50 1 'left 5)
             (lambda ()
               (list
                ;; shut it all down
+               (update-widget 'camera-preview (get-id "lock-camerap") 'shutdown 0)
                (delayed "when-timer" 1000 (lambda () '()))
                (finish-activity 1))))
 
     (draggable
      (make-id "block-root")
-     'vertical (layout 'fill-parent 'fill-parent 1 'left 0) (list 255 255 0 20)
+     'vertical (layout 0 0 1 'left 0) (list 255 255 0 20)
      "drop-only"
      (list)
      (lambda ()
