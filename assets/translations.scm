@@ -12,4 +12,5 @@
    (list 'code (list "code"))
    (list 'programs (list "programs"))
    (list 'list-empty (list "no programs yet"))
+   (list 'program-name (list "program name"))
    ))

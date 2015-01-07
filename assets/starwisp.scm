@@ -35,13 +35,6 @@
 
 (define settings-entity-id-version 2)
 
-(insert-entity-if-not-exists
- db "local" "app-settings" "null" settings-entity-id-version
- (list
-  (ktv "user-id" "varchar" "not set")
-  (ktv "language" "int" 0)
-  (ktv "current-village" "varchar" "none")))
-
 (define (get-setting-value name)
   (ktv-get (get-entity db "local" settings-entity-id-version) name))
 
@@ -125,12 +118,12 @@
 (define (show . data)
   (if data
       (toast-size
-       (foldl
+       (dbg (foldl
         (lambda (d r)
           (if d
               (string-append r " " (escape-quotes (scheme->json d)))
               (string-append r " no data yet...")))
-        "" data)
+        "" (dbg data)))
        10)
       (toast "no data yet...")))
 
@@ -242,6 +235,7 @@
                    (set! num (string->number v))
                    '())))
      (lambda ()
+       (msg "running number code block cb")
        (scheme->json (list 1 num))))))
 
 (define (text-code-block text)
@@ -258,12 +252,15 @@
                    (set! text v)
                    '())))
      (lambda ()
-       (scheme->json (list 1 (string-append "\\\"" text "\\\"")))))))
+       (msg "running text code block cb")
+       (dbg (scheme->json (list 1 (dbg (string-append "'" text "'")))))))))
 
 
 ;; top level eval
 (define (eval-blocks t)
   (msg "evaling->" t)
+
+
   (append
    (dbg (foldl (lambda (sexp r)
                  (append (eval sexp) r)) '() t) )
@@ -555,7 +552,7 @@
                         (lambda ()
                           (list
                            (ktv "name" "varchar" "a program")
-                           (ktv "text" "varchar" "")))
+                           (ktv "text" "varchar" (scheme->json '(when-timer 3 (show "hello world"))))))
                         )
 
      (button
@@ -780,7 +777,7 @@
     0 (layout 'fill-parent 'fill-parent 1 'centre 0)
     (list
      (vert-fill
-      (mtext 'code)
+      (medit-text 'program-name "normal" (lambda (v) (entity-set-value! "name" "varchar" v) '()))
 
       (scroll-view-vert
        0 (layout 'fill-parent 'fill-parent 1 'centre 0)
@@ -849,9 +846,11 @@
    (lambda (activity arg)
      (activity-layout activity))
    (lambda (activity arg)
-     (entity-init! db "code" "program" (get-entity-by-unique db "sync" arg))
+     (msg "getting entity " arg)
+     (entity-init! db "code" "program" (get-entity-by-unique db "code" arg))
      (set-current! 'camera-preview-id (get-id "camerap"))
      (list
+      (mupdate 'edit-text 'program-name "name")
       (update-widget
        'draggable (get-id "block-root")
        'contents (load-code))))
