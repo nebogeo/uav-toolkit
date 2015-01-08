@@ -63,7 +63,35 @@ db "local" "app-settings" "null" settings-entity-id-version
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
- (define-macro (when-timer . args)
+(define earth-radius-metres 6371000)
+(define (to-radians a) (* a (/ 3.141592653589793 180)))
+
+(define (gps-distance a b)
+  (let ((lata (to-radians (car a)))
+        (lona (to-radians (cadr a)))
+        (latb (to-radians (car b)))
+        (lonb (to-radians (cadr b))))
+    (let ((cosang  (+ (* (cos lata) (cos latb) (cos (- lonb lona)))
+                      (* (sin lata) (sin latb)))))
+      (* (acos cosang) earth-radius-metres))))
+
+(define-macro (when-moved-metres . args)
+  `(begin
+     (define (when-moved-cb)
+       ;;(msg ,(cdr args))
+       (append
+        (cond
+         ((> (gps-distance (get-current 'location '(0 0))
+                           (get-current 'last-moved-location '(0 0)))
+             ,(car args))
+          (set-current! 'last-moved-location (get-current 'location '(0 0)))
+          ,(cadr args))
+         (else '()))
+        (list (delayed "when-moved" 300 when-moved-cb))))
+     (list
+      (delayed "when-moved" 300 when-moved-cb))))
+
+(define-macro (when-timer . args)
   `(begin
      (define (when-timer-cb)
        ;;(msg ,(cdr args))
@@ -72,6 +100,8 @@ db "local" "app-settings" "null" settings-entity-id-version
         (list (delayed "when-timer" (* 1000 ,(car args)) when-timer-cb))))
      (list
       (delayed "when-timer" (* 1000 ,(car args)) when-timer-cb))))
+
+
 
 (define (sensor->ktv-list d)
   (let ((name (car d)))
@@ -116,6 +146,8 @@ db "local" "app-settings" "null" settings-entity-id-version
                                       (number->string (car t)) "-" (number->string (cadr t))
                                       ".jpg"))))
 
+
+
 (define (show . data)
   (list
    (if data
@@ -137,6 +169,8 @@ db "local" "app-settings" "null" settings-entity-id-version
   ;; return a sensor type/data list
   (let ((item (assv type (get-current 'sensor-values '()))))
     (if item (list (sensor-type->string (car item)) (cadr item)) #f)))
+
+(define (gps) (list "gps" (list (get-current 'location '()))))
 
 (define (accelerometer) (get-sensor-value sensor-accelerometer))
 (define (ambient-temperature) (get-sensor-value sensor-ambient-temperature))
@@ -573,6 +607,13 @@ db "local" "app-settings" "null" settings-entity-id-version
      (activity-layout activity))
    (lambda (activity arg)
      (list
+      ;; start gps here, and run it all the time...
+      (gps-start "gps" (lambda (loc)
+                         (set-current! 'location loc)
+                         (list (toast (string-append
+                                       (number->string (car loc)) ", "
+                                       (number->string (cadr loc)))))))
+
       (update-list-widget db "code" (list "name") "program" "vptest" #f)
       ))
    (lambda (activity) '())
@@ -803,7 +844,7 @@ db "local" "app-settings" "null" settings-entity-id-version
 
       (draggable
        (make-id "block-bin")
-       'vertical (layout 'fill-parent 'wrap-content 1 'left 0) (list 255 255 0 20)
+       'vertical (layout 'fill-parent 'wrap-content 1 'left 10) (list 255 255 0 20)
        "drop-only-consume"
        (list (mtext 'rubbish-bin))
        (lambda ()
@@ -812,7 +853,7 @@ db "local" "app-settings" "null" settings-entity-id-version
 
       (horiz
        (button (make-id "lock-button")
-               "Flight mode" 20 (layout 'fill-parent 'wrap-content 1 'left 5)
+               "flight lock" 30 (layout 'fill-parent 'wrap-content 1 'left 10)
                (lambda ()
                  (list
                   (alert-dialog
@@ -827,25 +868,7 @@ db "local" "app-settings" "null" settings-entity-id-version
                       (else
                        (list))))))))
 
-
-       (button (make-id "exit-button")
-               "Exit" 30 (layout 'fill-parent 'wrap-content 1 'left 5)
-               (lambda ()
-                 (list
-                  (alert-dialog
-                   "vptest-exit"
-                   "Exit running program: are you sure?"
-                   (lambda (v)
-                     (cond
-                      ((eqv? v 1)
-                      (list
-                       ;; shut it all down
-                       (delayed "when-timer" 1000 (lambda () '()))
-                       (finish-activity 1)))
-                      (else
-                       (list)))))))))
-
-      (delete-button)))
+       (delete-button))))
 
    (camera-preview (make-id "camerap") (layout 1 1 1 'left 0))
 
@@ -875,7 +898,7 @@ db "local" "app-settings" "null" settings-entity-id-version
    "lock"
    (vert
     (button (make-id "exit-button")
-            "Exit" 20 (layout 50 50 1 'left 5)
+            "Exit" 20 (layout 100 100 1 'left 5)
             (lambda ()
               (list
                ;; shut it all down

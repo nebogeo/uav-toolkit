@@ -903,7 +903,7 @@
           search-results)))))
 
 (define (delete-button)
-  (mbutton
+  (mbutton-scale
    'delete
    (lambda ()
      (list
