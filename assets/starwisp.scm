@@ -75,17 +75,21 @@ db "local" "app-settings" "null" settings-entity-id-version
                       (* (sin lata) (sin latb)))))
       (* (acos cosang) earth-radius-metres))))
 
+(define (clear-triggers)
+  (list
+   (delayed "when-moved" 200 (lambda () '()))
+   (delayed "when-timer" 200 (lambda () '()))))
+
 (define-macro (when-moved-metres . args)
   `(begin
      (define (when-moved-cb)
-       ;;(msg ,(cdr args))
        (append
         (cond
          ((> (gps-distance (get-current 'location '(0 0))
                            (get-current 'last-moved-location '(0 0)))
              ,(car args))
           (set-current! 'last-moved-location (get-current 'location '(0 0)))
-          ,(cadr args))
+          ,@(cdr args))
          (else '()))
         (list (delayed "when-moved" 300 when-moved-cb))))
      (list
@@ -94,14 +98,17 @@ db "local" "app-settings" "null" settings-entity-id-version
 (define-macro (when-timer . args)
   `(begin
      (define (when-timer-cb)
-       ;;(msg ,(cdr args))
        (append
-        ,(cadr args)
+        ,@(cdr args)
         (list (delayed "when-timer" (* 1000 ,(car args)) when-timer-cb))))
      (list
       (delayed "when-timer" (* 1000 ,(car args)) when-timer-cb))))
 
+(define (noise)
+  (list (play-sound "ping")))
 
+(define (shake)
+  (list (vibrate 200)))
 
 (define (sensor->ktv-list d)
   (let ((name (car d)))
@@ -112,7 +119,7 @@ db "local" "app-settings" "null" settings-entity-id-version
            (ktv (string-append name "-" (number->string i)) "varchar" d)))
      (cadr d))))
 
-(define (save-entity name . data)
+(define (save-to-db name . data)
   (define photo-name "")
   (entity-create!
    db "stream" "user-data"
@@ -318,11 +325,11 @@ db "local" "app-settings" "null" settings-entity-id-version
 
 (define control-colour (list 255 200 100 255))
 (define control-functions
-  (list "when-timer" "when-moved-metres" "when-update" "when-pressed"))
+  (list "when-timer" "when-moved-metres" "when-update" "when-pressed" "append"))
 
 (define data-colour (list 200 255 100 255))
 (define data-functions
-  (list "save-entity" "load-entity" "text"))
+  (list "save-to-db" "load-from-db" "text" "1"))
 
 (define sensor-colour (list 255 100 200 255))
 (define sensor-functions
@@ -343,7 +350,6 @@ db "local" "app-settings" "null" settings-entity-id-version
   "relative-humidity"
   "rotation-vector"
   "significant-motion"
-
   "gps"
   "camera"
   "camera-horiz-angle"
@@ -355,7 +361,7 @@ db "local" "app-settings" "null" settings-entity-id-version
 
 (define display-colour (list 100 255 200 255))
 (define display-functions
-  (list "show" "sound" "vibrate"))
+  (list "show" "noise" "shake"))
 
 (define (code-block-colour text)
   (cond
@@ -789,14 +795,18 @@ db "local" "app-settings" "null" settings-entity-id-version
              (list (replace-fragment (make-id "menu-holder") "block-chooser"))
              (list (replace-fragment (make-id "menu-holder") "")))))
 
-      (mbutton-scale
+      (mtoggle-button-scale
        'eval
-       (lambda ()
-         (list
-          (walk-draggable
-           "eval-walk" (get-id "block-root")
-           (lambda (t)
-             (eval-blocks t))))))
+       (lambda (v)
+         (if (eqv? v 1)
+             (list
+              (walk-draggable
+               "eval-walk" (get-id "block-root")
+               (lambda (t)
+                 (eval-blocks t))))
+             (clear-triggers))))
+
+
       (mbutton-scale
        'save
        (lambda ()
@@ -900,11 +910,12 @@ db "local" "app-settings" "null" settings-entity-id-version
     (button (make-id "exit-button")
             "Exit" 20 (layout 100 100 1 'left 5)
             (lambda ()
-              (list
-               ;; shut it all down
-               (update-widget 'camera-preview (get-id "lock-camerap") 'shutdown 0)
-               (delayed "when-timer" 1000 (lambda () '()))
-               (finish-activity 1))))
+              (append
+               (clear-triggers)
+               (list
+                ;; shut it all down
+                (update-widget 'camera-preview (get-id "lock-camerap") 'shutdown 0)
+                (finish-activity 1)))))
 
     (draggable
      (make-id "block-root")
