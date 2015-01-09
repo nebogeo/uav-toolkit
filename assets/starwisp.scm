@@ -84,6 +84,13 @@ db "local" "app-settings" "null" settings-entity-id-version
   `(begin
      (define (when-moved-cb)
        (append
+        (list
+         (toast
+          (string-append
+           (number->string (car (get-current 'location '(0 0)))) ","
+           (number->string (cadr (get-current 'location '(0 0)))) " : "
+           (number->string (gps-distance (get-current 'location '(0 0))
+                                         (get-current 'last-moved-location '(0 0)))))))
         (cond
          ((> (gps-distance (get-current 'location '(0 0))
                            (get-current 'last-moved-location '(0 0)))
@@ -91,9 +98,9 @@ db "local" "app-settings" "null" settings-entity-id-version
           (set-current! 'last-moved-location (get-current 'location '(0 0)))
           ,@(cdr args))
          (else '()))
-        (list (delayed "when-moved" 300 when-moved-cb))))
+        (list (delayed "when-moved" 2000 when-moved-cb))))
      (list
-      (delayed "when-moved" 300 when-moved-cb))))
+      (delayed "when-moved" 2000 when-moved-cb))))
 
 (define-macro (when-timer . args)
   `(begin
@@ -616,9 +623,7 @@ db "local" "app-settings" "null" settings-entity-id-version
       ;; start gps here, and run it all the time...
       (gps-start "gps" (lambda (loc)
                          (set-current! 'location loc)
-                         (list (toast (string-append
-                                       (number->string (car loc)) ", "
-                                       (number->string (cadr loc)))))))
+                         (list)))
 
       (update-list-widget db "code" (list "name") "program" "vptest" #f)
       ))
