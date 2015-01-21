@@ -32,6 +32,7 @@
 (db-open db)
 (setup db "local")
 (setup db "code")
+(setup db "stream")
 
 (define settings-entity-id-version 2)
 
@@ -41,6 +42,32 @@ db "local" "app-settings" "null" settings-entity-id-version
 (ktv "user-id" "varchar" "not set")
 (ktv "language" "int" 0)
 (ktv "current-village" "varchar" "none")))
+
+
+(insert-entity-if-not-exists
+ db "code" "program" "null" 1
+ (list
+  (ktv "name" "varchar" "fov percentage")
+  (ktv "text" "varchar" (scheme->json
+                         '((when-moved-metres
+                            (* (tan (to-radians (/ (camera-vert-angle) 2)))
+                               (* 300 0.5))
+                            (save-to-db "coverage" (gps) (camera)) (shake)))))))
+
+(insert-entity-if-not-exists
+ db "code" "program" "null" 2
+  (list
+   (ktv "name" "varchar" "timed camera")
+   (ktv "text" "varchar" (scheme->json
+                          '((when-timer
+                             3
+                             (save-to-db
+                              "test"
+                              (camera)
+                              (significant-motion)
+                              (accelerometer)
+                              (gps))
+                             (shake)))))))
 
 (define (get-setting-value name)
   (ktv-get (get-entity db "local" settings-entity-id-version) name))
@@ -95,9 +122,11 @@ db "local" "app-settings" "null" settings-entity-id-version
          ((> (gps-distance (get-current 'location '(0 0))
                            (get-current 'last-moved-location '(0 0)))
              ,(car args))
+          (msg "moved cb happened")
           (set-current! 'last-moved-location (get-current 'location '(0 0)))
           ,@(cdr args))
-         (else '()))
+         (else
+          '()))
         (list (delayed "when-moved" 2000 when-moved-cb))))
      (list
       (delayed "when-moved" 2000 when-moved-cb))))
@@ -129,7 +158,7 @@ db "local" "app-settings" "null" settings-entity-id-version
 (define (save-to-db name . data)
   (define photo-name "")
   (entity-create!
-   db "stream" "user-data"
+   db "stream" name
    (cons
     (ktv "name" "varchar" name)
     (foldl
@@ -144,12 +173,16 @@ db "local" "app-settings" "null" settings-entity-id-version
                (set! photo-name (cadr i)))
          (append r (list (ktv "photo" "file" photo-name))))
         (else
-         (append r (sensor->ktv-list i)) r)))
+         (msg "saving something other than a photo")
+         (msg i)
+         (append r (sensor->ktv-list i)))))
      '()
-     (dbg data))))
+     data)))
   (append
    (if (not (equal? photo-name ""))
-       (list (update-widget 'camera-preview (get-current 'camera-preview-id 0) 'take-picture-cont photo-name))
+       (begin
+         (alog "sending take picture")
+         (list (update-widget 'camera-preview (get-current 'camera-preview-id 0) 'take-picture-cont photo-name)))
        '())
    (list (toast (string-append "saved entity: " name)))))
 
@@ -184,7 +217,12 @@ db "local" "app-settings" "null" settings-entity-id-version
   (let ((item (assv type (get-current 'sensor-values '()))))
     (if item (list (sensor-type->string (car item)) (cadr item)) #f)))
 
-(define (gps) (list "gps" (list (get-current 'location '()))))
+(define (get-camera-property name)
+  (msg camera-properties)
+  (let ((found (assoc name camera-properties)))
+    (if found (cadr found) #f)))
+
+(define (gps) (list "gps" (get-current 'location '())))
 
 (define (accelerometer) (get-sensor-value sensor-accelerometer))
 (define (ambient-temperature) (get-sensor-value sensor-ambient-temperature))
@@ -362,9 +400,17 @@ db "local" "app-settings" "null" settings-entity-id-version
   "camera-horiz-angle"
   "camera-vert-angle"))
 
+(define (camera-horiz-angle)
+  (get-camera-property 'horis-angle)) ;; sic
+
+(define (camera-vert-angle)
+  (let ((v (get-camera-property 'vert-angle)))
+    (msg v)
+    v))
+
 (define maths-colour (list 200 100 255 255))
 (define maths-functions
-  (list "+" "-" "/" "*" "sin" "cos" "tan" "asin" "acos" "atan" "modulo" "pow" "300" "\\\"hello world\\\""))
+  (list "+" "-" "/" "*" "sin" "cos" "tan" "asin" "acos" "atan" "modulo" "pow" "to-radians" "300" "\\\"hello world\\\""))
 
 (define display-colour (list 100 255 200 255))
 (define display-functions
@@ -830,9 +876,6 @@ db "local" "app-settings" "null" settings-entity-id-version
       "" (make-id "menu-holder")
       (layout 'fill-parent 'wrap-content -1 'left 0))))
 
-
-
-
    (scroll-view-vert
     0 (layout 'fill-parent 'fill-parent 1 'centre 0)
     (list
@@ -842,6 +885,7 @@ db "local" "app-settings" "null" settings-entity-id-version
       (scroll-view-vert
        0 (layout 'fill-parent 'fill-parent 1 'centre 0)
        (list
+        (vert
         (draggable
          (make-id "block-root")
          'vertical (layout 'fill-parent 'fill-parent 1 'left 0) (list 255 255 0 20)
@@ -849,7 +893,31 @@ db "local" "app-settings" "null" settings-entity-id-version
          (list)
          (lambda ()
            (msg "root cb")
-           (scheme->json (list 0 "")))))))))
+           (scheme->json (list 0 ""))))
+
+        (horiz
+         (button (make-id "lock-button")
+                 "flight lock" 30 (layout 'fill-parent 'wrap-content 1 'centre 5)
+                 (lambda ()
+                   (list
+                    (alert-dialog
+                     "vptest-lock"
+                     "Enter flight mode: phone needs hard reset to stop the program - are you sure?"
+                     (lambda (v)
+                       (cond
+                        ((eqv? v 1)
+                         (list
+                          (update-widget 'camera-preview (get-id "camerap") 'shutdown 0)
+                          (start-activity "lock" 0 "")))
+                        (else
+                         (list))))))))
+
+         (delete-button))
+
+        (camera-preview (make-id "camerap") (layout 'fill-parent 320 1 'left 0)))
+
+
+        )))))
 
 
    (relative
@@ -864,28 +932,7 @@ db "local" "app-settings" "null" settings-entity-id-version
        (list (mtext 'rubbish-bin))
        (lambda ()
          (msg "rubbish bin cb")
-         (scheme->json (list 0 ""))))
-
-      (horiz
-       (button (make-id "lock-button")
-               "flight lock" 30 (layout 'fill-parent 'wrap-content 1 'left 10)
-               (lambda ()
-                 (list
-                  (alert-dialog
-                   "vptest-lock"
-                   "Enter flight mode: phone needs hard reset to stop the program - are you sure?"
-                   (lambda (v)
-                     (cond
-                      ((eqv? v 1)
-                       (list
-                        (update-widget 'camera-preview (get-id "camerap") 'shutdown 0)
-                        (start-activity "lock" 0 "")))
-                      (else
-                       (list))))))))
-
-       (delete-button))))
-
-   (camera-preview (make-id "camerap") (layout 1 1 1 'left 0))
+         (scheme->json (list 0 ""))))))
 
    )
    (lambda (activity arg)
@@ -931,7 +978,7 @@ db "local" "app-settings" "null" settings-entity-id-version
        (msg "root cb")
        (scheme->json (list 0 ""))))
 
-    (camera-preview (make-id "lock-camerap") (layout 1 1 1 'left 0))
+    (camera-preview (make-id "lock-camerap") (layout 'fill-parent 320 1 'left 0))
     )
    (lambda (activity arg)
      (activity-layout activity))
@@ -960,11 +1007,11 @@ db "local" "app-settings" "null" settings-entity-id-version
     (horiz
      (text-view 0 "View data" 40 (layout 'fill-parent 'wrap-content 1 'left 0))
      (spinner (make-id "entity-type-spinner")
-              entity-types
+              '()
               (layout 'fill-parent 'wrap-content 1 'centre 0)
               (lambda (v)
                 (review-update-list
-                 (list-ref entity-types v)))))
+                 (list-ref (map (lambda (i) (vector-ref i 0)) (get-all-entity-types db "stream")) v)))))
 
 
     (scroll-view-vert
@@ -979,7 +1026,12 @@ db "local" "app-settings" "null" settings-entity-id-version
       )))
    (lambda (activity arg)
      (activity-layout activity))
-   (lambda (activity arg) '())
+   (lambda (activity arg)
+     (list
+      (update-widget 'spinner (get-id "entity-type-spinner")
+                     'array
+                     (map (lambda (i) (vector-ref i 0))
+                          (get-all-entity-types db "stream")))))
    (lambda (activity) '())
    (lambda (activity) '())
    (lambda (activity) '())
