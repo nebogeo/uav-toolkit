@@ -149,13 +149,5 @@ def conv_csv(data):
                   r+conv_csv_ktv(elem)+", ",
                   data, "")
 
-db = sqlite3.connect('mongoose2.db')
-
-print get_all_entity_types(db,'stream')
-#print get_attribute_ids_types(db, 'stream', 'group-interaction')
-
-table = 'stream'
-
-for i in get_all_entity_types(db,table):
-    with open(i+'.csv','w') as f:
-        f.write(csv(db,table,i))
+def open(filename):
+    return sqlite3.connect(filename)
