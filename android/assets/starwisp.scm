@@ -124,7 +124,7 @@ db "local" "app-settings" "null" settings-entity-id-version
              ,(car args))
           (msg "moved cb happened")
           (set-current! 'last-moved-location (get-current 'location '(0 0)))
-          ,@(cdr args))
+          (append ,@(cdr args)))
          (else
           '()))
         (list (delayed "when-moved" 2000 when-moved-cb))))
@@ -139,6 +139,49 @@ db "local" "app-settings" "null" settings-entity-id-version
         (list (delayed "when-timer" (* 1000 ,(car args)) when-timer-cb))))
      (list
       (delayed "when-timer" (* 1000 ,(car args)) when-timer-cb))))
+
+(define (new-location? dist)
+  (cond
+   ((foldl ;; are we inside the radius of any previous location?
+     (lambda (loc r)
+       (cond
+        ((and (not r)
+              (< (gps-distance (get-current 'location '(0 0)) loc) dist))
+         #t)
+        (else r)))
+     #f
+     (get-current 'location-list '()))
+    (msg "inside")
+    #f)
+   (else
+    (msg "outside")
+    (alog "adding...")
+    (set-current! 'location-list (cons (get-current 'location '(0 0)) (get-current 'location-list '())))
+    #t)))
+
+(define-macro (when-in-new-location . args)
+  `(begin
+     (define (when-new-location-cb)
+       (append
+        (list
+         (toast
+          (string-append
+           (number->string (car (get-current 'location '(0 0)))) ","
+           (number->string (cadr (get-current 'location '(0 0)))) ": "
+           (number->string (length (get-current 'location-list '()))))))
+        (cond
+         ((new-location? ,(car args))
+          (msg "new location cb happened")
+          (set-current! 'last-moved-location (get-current 'location '(0 0)))
+          (append ,@(cdr args)))
+         (else
+          '()))
+        (list (delayed "when-new-location" 2000 when-new-location-cb))))
+     ;; clear locations
+     (set-current! 'location-list '())
+     (list
+      (delayed "when-new-location" 2000 when-new-location-cb))))
+
 
 (define (noise)
   (list (play-sound "ping")))
@@ -370,7 +413,7 @@ db "local" "app-settings" "null" settings-entity-id-version
 
 (define control-colour (list 255 200 100 255))
 (define control-functions
-  (list "when-timer" "when-moved-metres" "when-update" "when-pressed" "append"))
+  (list "when-timer" "when-moved-metres" "when-in-new-location" "when-update" "when-pressed" "append"))
 
 (define data-colour (list 200 255 100 255))
 (define data-functions
@@ -622,6 +665,7 @@ db "local" "app-settings" "null" settings-entity-id-version
    "main"
    (vert
     (image-view 0 "logo" (layout 'wrap-content 'wrap-content -1 'centre 0))
+    (text-view (make-id "version") app-version 20 fillwrap)
 
     (scroll-view-vert
      0 (layout 'fill-parent 'wrap-content 0.75 'centre 0)
@@ -669,7 +713,8 @@ db "local" "app-settings" "null" settings-entity-id-version
       ;; start gps here, and run it all the time...
       (gps-start "gps" (lambda (loc)
                          (set-current! 'location loc)
-                         (list)))
+                         (list))
+                 (* 30 1000) 5)
 
       (update-list-widget db "code" (list "name") "program" "vptest" #f)
       ))
@@ -960,7 +1005,7 @@ db "local" "app-settings" "null" settings-entity-id-version
    "lock"
    (vert
     (button (make-id "exit-button")
-            "Exit" 20 (layout 100 100 1 'left 5)
+            "Exit" 20 (layout 'fill-parent 'wrap-content 1 'left 5)
             (lambda ()
               (append
                (clear-triggers)
@@ -971,7 +1016,7 @@ db "local" "app-settings" "null" settings-entity-id-version
 
     (draggable
      (make-id "block-root")
-     'vertical (layout 0 0 1 'left 0) (list 255 255 0 20)
+     'vertical (layout 10 10 1 'left 0) (list 255 255 0 20)
      "drop-only"
      (list)
      (lambda ()

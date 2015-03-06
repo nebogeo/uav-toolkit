@@ -45,6 +45,8 @@ import android.view.Gravity;
 import android.view.KeyEvent;
 import android.text.TextWatcher;
 import android.text.Editable;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager.NameNotFoundException;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -110,9 +112,25 @@ public class starwisp extends StarwispActivity
         int day = c.get(Calendar.DAY_OF_MONTH);
         int month = c.get(Calendar.MONTH)+1;
         int year = c.get(Calendar.YEAR);
+        int timezone_offset_mins = (c.get(Calendar.ZONE_OFFSET) + c.get(Calendar.DST_OFFSET)) / 60000;
+
+        String version = "Version not found";
+        try {
+            PackageInfo pInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
+            version = pInfo.versionName;
+        } catch (NameNotFoundException e) {
+            Log.e("starwisp", "Error getting version " + e.toString());
+        }
 
         // pass in a bunch of useful stuff
-        m_Scheme.eval("(define dirname \"/sdcard/"+dirname+"\")(define date-day "+day+") (define date-month "+month+") (define date-year "+year+")");
+        m_Scheme.eval("(define dirname \"/sdcard/"+dirname+"\")"+
+                      "(define date-day "+day+")"+
+                      "(define date-month "+month+")"+
+                      "(define date-year "+year+")"+
+                      "(define timezone-offset-mins "+timezone_offset_mins+")"+
+                      "(define app-version "+version+")");
+
+        // pass in a bunch of useful stuff
         DeclareSensors();
 
         Log.i("starwisp","started, now running starwisp.scm...");

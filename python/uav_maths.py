@@ -1,4 +1,5 @@
 import math
+from decimal import *
 
 ###########################################################
 
@@ -41,16 +42,16 @@ class vec3:
 class mat44:
     def __init__(self):
         self.zero();
-        self.m[0][0]=1
-        self.m[1][1]=1
-        self.m[2][2]=1
-        self.m[3][3]=1;
+        self.m[0][0]=Decimal(1)
+        self.m[1][1]=Decimal(1)
+        self.m[2][2]=Decimal(1)
+        self.m[3][3]=Decimal(1);
 
     def zero(self):
-        self.m=[[0,0,0,0],
-                [0,0,0,0],
-                [0,0,0,0],
-                [0,0,0,0]]
+        self.m=[[Decimal(0),Decimal(0),Decimal(0),Decimal(0)],
+                [Decimal(0),Decimal(0),Decimal(0),Decimal(0)],
+                [Decimal(0),Decimal(0),Decimal(0),Decimal(0)],
+                [Decimal(0),Decimal(0),Decimal(0),Decimal(0)]]
 
     def mul(self,rhs):
         t=mat44()
@@ -69,9 +70,9 @@ class mat44:
     def rotxyz(self, x, y, z):
         if x!=0:
             t=mat44()
-            x*=0.017453292
-            sx=math.sin(x)
-            cx=math.cos(x)
+            x*=Decimal(0.017453292)
+            sx=Decimal(math.sin(x))
+            cx=Decimal(math.cos(x))
             t.m[1][1]=cx
             t.m[2][1]=-sx
             t.m[1][2]=sx
@@ -79,9 +80,9 @@ class mat44:
             self.m=self.mul(t).m
         if y!=0:
             t=mat44()
-            y*=0.017453292
-            sy=math.sin(y)
-            cy=math.cos(y)
+            y*=Decimal(0.017453292)
+            sy=Decimal(math.sin(y))
+            cy=Decimal(math.cos(y))
             t.m[0][0]=cy
             t.m[2][0]=sy
             t.m[0][2]=-sy
@@ -89,9 +90,9 @@ class mat44:
             self.m=self.mul(t).m
         if z!=0:
             t=mat44()
-            z*=0.017453292
-            sz=math.sin(z)
-            cz=math.cos(z)
+            z*=Decimal(0.017453292)
+            sz=Decimal(math.sin(z))
+            cz=Decimal(math.cos(z))
             t.m[0][0]=cz
             t.m[1][0]=-sz
             t.m[0][1]=sz
