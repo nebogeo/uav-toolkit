@@ -9,10 +9,17 @@ def geo_read(filename):
     band1 = filehandle.GetRasterBand(1)
     band2 = filehandle.GetRasterBand(2)
     band3 = filehandle.GetRasterBand(3)
-
+    alpha = band3.ReadAsArray()
+    for i in range(0,len(alpha)): alpha[i]=255.0
+    band1.SetNoDataValue(0)
+    band2.SetNoDataValue(0)
+    band3.SetNoDataValue(0)
     xsize = filehandle.RasterXSize
     ysize = filehandle.RasterYSize
-    return xsize,ysize,[band1.ReadAsArray(),band2.ReadAsArray(),band3.ReadAsArray()]
+    return xsize,ysize,[band1.ReadAsArray(),
+                        band2.ReadAsArray(),
+                        band3.ReadAsArray(),
+                        alpha]
 
 
 def geo_write(filename,geotransform,geoprojection,data):
@@ -20,10 +27,11 @@ def geo_write(filename,geotransform,geoprojection,data):
     format = "GTiff"
     driver = gdal.GetDriverByName(format)
     dst_datatype = gdal.GDT_Byte
-    dst_ds = driver.Create(str(filename),y,x,3,dst_datatype)
+    dst_ds = driver.Create(str(filename),y,x,4,dst_datatype)
     dst_ds.GetRasterBand(1).WriteArray(data[0])
     dst_ds.GetRasterBand(2).WriteArray(data[1])
     dst_ds.GetRasterBand(3).WriteArray(data[2])
+    dst_ds.GetRasterBand(4).WriteArray(data[3])
     dst_ds.SetGeoTransform(geotransform)
     dst_ds.SetProjection(geoprojection)
     return 1
