@@ -63,7 +63,7 @@ db "local" "app-settings" "null" settings-entity-id-version
                              3
                              (save-to-db
                               "test"
-                              (camera)
+                              (take-photo)
                               (significant-motion)
                               (accelerometer)
                               (gps))
@@ -231,6 +231,12 @@ db "local" "app-settings" "null" settings-entity-id-version
 
 
 (define (camera)
+  (let ((t (time-of-day)))
+    (list "take-photo" (string-append "files/photo-"
+                                      (number->string (car t)) "-" (number->string (cadr t))
+                                      ".jpg"))))
+
+(define (take-photo)
   (let ((t (time-of-day)))
     (list "take-photo" (string-append "files/photo-"
                                       (number->string (car t)) "-" (number->string (cadr t))
@@ -439,7 +445,7 @@ db "local" "app-settings" "null" settings-entity-id-version
   "rotation-vector"
   "significant-motion"
   "gps"
-  "camera"
+  "take-photo"
   "camera-horiz-angle"
   "camera-vert-angle"))
 
