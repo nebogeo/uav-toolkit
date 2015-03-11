@@ -151,3 +151,46 @@ def conv_csv(data):
 
 def open(filename):
     return sqlite3.connect(filename)
+
+class eavdb_filter:
+    def __init__(self,key,t,op,arg):
+        self.key=key
+        self.type=t
+        self.op=op
+        self.arg=arg
+
+def query_chunk(f,table):
+    v=f.key+"_var"
+    v.replace("-","_")
+    # add a query chunk
+    return "join "+table+"_value_"+f.type+" "+\
+        "as "+v+" on "+\
+        v+".entity_id = e.entity_id and "+v+".attribute_id = '"+f.key+"' and "+\
+        v+".value "+f.op+" ? ";
+
+def build_query(table, filter):
+    q=""
+    for f in filter:
+        q+=query_chunk(f,table)
+
+    # boilerplate query start
+    return "select e.entity_id from "+table+"_entity as e "+\
+        "join "+table+"_value_varchar "+\
+        "as n on n.entity_id = e.entity_id and n.attribute_id = 'name' "+\
+        "join "+table+"_value_int "+\
+        "as d on d.entity_id = e.entity_id and d.attribute_id = 'deleted' and "\
+        "d.value = 0 "+q+\
+        "order by n.value"
+
+def build_args(f):
+    return map(lambda i: i.arg, f)
+
+def filter_entities(db, table, filter):
+    print build_query(table,filter)
+    c = db.cursor()
+    c.execute(build_query(table,filter),build_args(filter))
+    ids=c.fetchall()
+    entities = []
+    for id in ids:
+        entities.append(get_entity(db,table,id[0]))
+    return entities

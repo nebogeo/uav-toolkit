@@ -35,7 +35,6 @@
 
 (msg "hello from eavdb.ss")
 
-
 (define (upgrade-table db name)
   (db-exec db (string-append "alter table " name " add version integer")))
 
@@ -44,16 +43,28 @@
 (define (setup db table)
   (msg "db setup")
   (db-exec db (string-append "create table " table "_entity ( entity_id integer primary key autoincrement, entity_type varchar(256), unique_id varchar(256), dirty integer, version integer)"))
+  (db-exec db (string-append "create index if not exists index_" table "_entity on " table "_entity (unique_id)"))
+
   (db-exec db (string-append "create table " table "_attribute ( id integer primary key autoincrement, attribute_id varchar(256), entity_type varchar(256), attribute_type varchar(256))"))
+  (db-exec db (string-append "create index if not exists index_" table "_attribute on " table "_attribute (entity_type)"))
+
   (db-exec db (string-append "create table " table "_value_varchar ( id integer primary key autoincrement, entity_id integer, attribute_id varchar(255), value varchar(4096), dirty integer, version integer)"))
   (upgrade-table db (string-append table "_value_varchar"))
+  (db-exec db (string-append "create index if not exists index_" table "_value_varchar on " table "_value_varchar (entity_id,attribute_id)"))
+
   (db-exec db (string-append "create table " table "_value_int ( id integer primary key autoincrement, entity_id integer, attribute_id varchar(255), value integer, dirty integer, version integer)"))
   (upgrade-table db (string-append table "_value_int"))
+  (db-exec db (string-append "create index if not exists index_" table "_value_int on " table "_value_int (entity_id,attribute_id)"))
+
   (db-exec db (string-append "create table " table "_value_real ( id integer primary key autoincrement, entity_id integer, attribute_id varchar(255), value real, dirty integer, version integer)"))
   (upgrade-table db (string-append table "_value_real"))
-  (db-exec db (string-append "create table " table "_value_file ( id integer primary key autoincrement, entity_id integer, attribute_id varchar(255), value varchar(4096), dirty integer, version integer)"))
-  (upgrade-table db (string-append table "_value_file")))
+  (db-exec db (string-append "create index if not exists index_" table "_value_real on " table "_value_real (entity_id,attribute_id)"))
 
+  (db-exec db (string-append "create table " table "_value_file ( id integer primary key autoincrement, entity_id integer, attribute_id varchar(255), value varchar(4096), dirty integer, version integer)"))
+  (upgrade-table db (string-append table "_value_file"))
+  (db-exec db (string-append "create index if not exists index_" table "_value_file on " table "_value_file (entity_id,attribute_id)"))
+
+  )
 
 (define (validate db)
   ;; check attribute for duplicate entity-id/attribute-ids
