@@ -110,7 +110,7 @@
      "join " table "_value_varchar "
      "as n on n.entity_id = e.entity_id and n.attribute_id = 'name' ")
     filter)
-   "where e.entity_type = ? order by value"))
+   "where e.entity_type = ? order by n.value"))
 
 
 (define (build-args filter)

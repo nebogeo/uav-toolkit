@@ -14,7 +14,6 @@ print eavdb.get_all_entity_types(db,'stream')
 
 def process(entities):
     for c,e in enumerate(entities):
-        print c+10
         filename = eavdb.ktv_get(e,"photo")
 
         gps = uav_maths.geo(eavdb.ktv_get(e,"gps-1"), eavdb.ktv_get(e,"gps-0"))
@@ -25,7 +24,7 @@ def process(entities):
 
         magnet.z=0 # collapse z
         magnet.normalise()
-        magnet.pretty_print()
+        #magnet.pretty_print()
 
         #    gps.pretty_print()
 
@@ -57,5 +56,5 @@ def process(entities):
 entities = eavdb.filter_entities(db,"stream",
                                  [eavdb.eavdb_filter("time","varchar",">","2015-03-10 03:19:00")])
 
-print entities
+
 process(entities)

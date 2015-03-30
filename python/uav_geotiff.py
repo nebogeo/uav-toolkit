@@ -28,6 +28,7 @@ def geo_write(filename,geotransform,geoprojection,data):
     driver = gdal.GetDriverByName(format)
     dst_datatype = gdal.GDT_Byte
     dst_ds = driver.Create(str(filename),y,x,4,dst_datatype)
+
     dst_ds.GetRasterBand(1).WriteArray(data[0])
     dst_ds.GetRasterBand(2).WriteArray(data[1])
     dst_ds.GetRasterBand(3).WriteArray(data[2])
@@ -42,17 +43,28 @@ def geo_convert(in_prepend,filename,gps,north,out_prepend):
 
     a = math.atan2(north.y,north.x)
 
+
+    # vert-angle 49.1, horiz-angle 63.1
+
+
     m = uav_maths.mat44();
     m.rotxyz(Decimal(0),Decimal(0),Decimal(-a*uav_maths.degconv));
-    m.scale(Decimal(0.00000005),Decimal(0.00000005),Decimal(0.00000005));
-    print "ANGLE:",a*uav_maths.degconv
+    m.scale(Decimal(1),Decimal(1),Decimal(1));
+#    print "ANGLE:",a*uav_maths.degconv
 
-    print m.m[0][0]
+#    print m.m[0][0]
 
     gt = [ gps.lat, m.m[0][0], m.m[1][0],
            gps.lon, m.m[0][1], m.m[1][1] ]
     w,h,data = geo_read(in_prepend+filename)
     srs = osr.SpatialReference()
     srs.ImportFromEPSG(4326)
+    srs.SetLinearUnits("METRES",1)
+    print srs
+    print "-------------"
+    #print (srs.GetTargetLinearUnits())
+    print "-------------"
+
+
     #srs.SetWellKnownGeogCS("WGS84")
     geo_write(out_prepend+filename+".tif",gt,srs.ExportToWkt(),data)

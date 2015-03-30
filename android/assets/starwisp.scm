@@ -36,38 +36,74 @@
 
 (define settings-entity-id-version 2)
 
-(insert-entity-if-not-exists
-db "local" "app-settings" "null" settings-entity-id-version
-(list
-(ktv "user-id" "varchar" "not set")
-(ktv "language" "int" 0)
-(ktv "current-village" "varchar" "none")))
-
+(define (insert-if-not-exists-name db table type name ktv-list)
+  (msg "insert-if-not-exists-name")
+  (when
+   (null? (dbg (filter-entities-inc-deleted db table type (list (list "name" "varchar" "=" name)))))
+   (insert-entity db table type "sys" ktv-list)))
 
 (insert-entity-if-not-exists
- db "code" "program" "null" 1
+ db "local" "app-settings" "null" settings-entity-id-version
  (list
-  (ktv "name" "varchar" "fov percentage")
+  (ktv "user-id" "varchar" "not set")
+  (ktv "language" "int" 0)
+  (ktv "current-village" "varchar" "none")))
+
+(insert-if-not-exists-name
+ db "code" "program" "camera fov 2"
+ (list
+  (ktv "name" "varchar" "camera fov 2")
   (ktv "text" "varchar" (scheme->json
                          '((when-moved-metres
                             (* (tan (to-radians (/ (camera-vert-angle) 2)))
-                               (* 300 0.5))
-                            (save-to-db "coverage" (gps) (camera)) (shake)))))))
+                               (* 30 0.5))
+                            (save-to-db "camera-fov"
+                                        (orientation)
+                                        (gyroscope)
+                                        (gravity)
+                                        (accelerometer)
+                                        (magnetic-field)
+                                        (gps)
+                                        (take-photo))
+                            (noise)))))))
 
-(insert-entity-if-not-exists
- db "code" "program" "null" 2
-  (list
-   (ktv "name" "varchar" "timed camera")
-   (ktv "text" "varchar" (scheme->json
-                          '((when-timer
-                             3
-                             (save-to-db
-                              "test"
-                              (take-photo)
-                              (significant-motion)
-                              (accelerometer)
-                              (gps))
-                             (shake)))))))
+(insert-if-not-exists-name
+ db "code" "program" "timed camera 2"
+ (list
+  (ktv "name" "varchar" "timed camera 2")
+  (ktv "text" "varchar" (scheme->json
+                         '((when-timer
+                            3
+                            (save-to-db
+                             "camera-timer"
+                             (orientation)
+                             (gyroscope)
+                             (gravity)
+                             (accelerometer)
+                             (magnetic-field)
+                             (gps)
+                             (take-photo))
+                            (noise)))))))
+
+(insert-if-not-exists-name
+ db "code" "program" "new location camera"
+ (list
+  (ktv "name" "varchar" "new location camera")
+  (ktv "text" "varchar" (scheme->json
+                         '((when-in-new-location
+                            (* (tan (to-radians (/ (camera-vert-angle) 2)))
+                               (* 30 0.5))
+                            (save-to-db "camera-new-location"
+                                        (orientation)
+                                        (gyroscope)
+                                        (gravity)
+                                        (accelerometer)
+                                        (magnetic-field)
+                                        (gps)
+                                        (take-photo))
+                            (noise)))))))
+
+
 
 (define (get-setting-value name)
   (ktv-get (get-entity db "local" settings-entity-id-version) name))
@@ -394,6 +430,14 @@ db "local" "app-settings" "null" settings-entity-id-version
        (msg "running text code block cb")
        (dbg (scheme->json (list 1 (dbg (string-append "\\\"" text "\\\"")))))))))
 
+
+;; start with some default sensors
+(set-current! 'sensors (list
+                        sensor-accelerometer
+                        sensor-gravity
+                        sensor-gyroscope
+                        sensor-magnetic-field
+                        sensor-orientation))
 
 ;; top level eval
 (define (eval-blocks t)
