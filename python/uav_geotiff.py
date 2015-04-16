@@ -6,9 +6,13 @@ from decimal import *
 
 def geo_read(filename):
     filehandle = gdal.Open(str(filename))
+    if not filehandle: return False,False,False
     band1 = filehandle.GetRasterBand(1)
     band2 = filehandle.GetRasterBand(2)
     band3 = filehandle.GetRasterBand(3)
+
+    if not band1 or not band2 or not band3: return False,False,False
+
     alpha = band3.ReadAsArray()
     for i in range(0,len(alpha)): alpha[i]=255.0
     band1.SetNoDataValue(0)
@@ -35,6 +39,7 @@ def geo_write(filename,geotransform,geoprojection,data):
     dst_ds.GetRasterBand(4).WriteArray(data[3])
     dst_ds.SetGeoTransform(geotransform)
     dst_ds.SetProjection(geoprojection)
+
     return 1
 
 def geo_convert(in_prepend,filename,gps,north,out_prepend):
@@ -45,11 +50,13 @@ def geo_convert(in_prepend,filename,gps,north,out_prepend):
 
 
     # vert-angle 49.1, horiz-angle 63.1
+    pixel_size = Decimal(0.00000005)
+
 
 
     m = uav_maths.mat44();
-    m.rotxyz(Decimal(0),Decimal(0),Decimal(-a*uav_maths.degconv));
-    m.scale(Decimal(1),Decimal(1),Decimal(1));
+    m.rotxyz(Decimal(0),Decimal(0),Decimal(45*uav_maths.degconv));
+    m.scale(pixel_size,-pixel_size,1);
 #    print "ANGLE:",a*uav_maths.degconv
 
 #    print m.m[0][0]
@@ -57,6 +64,9 @@ def geo_convert(in_prepend,filename,gps,north,out_prepend):
     gt = [ gps.lat, m.m[0][0], m.m[1][0],
            gps.lon, m.m[0][1], m.m[1][1] ]
     w,h,data = geo_read(in_prepend+filename)
+
+    if not w: return
+
     srs = osr.SpatialReference()
     srs.ImportFromEPSG(4326)
     srs.SetLinearUnits("METRES",1)

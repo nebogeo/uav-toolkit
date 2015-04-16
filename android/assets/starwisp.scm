@@ -764,7 +764,7 @@
       (gps-start "gps" (lambda (loc)
                          (set-current! 'location loc)
                          (list))
-                 (* 30 1000) 5)
+                 500 5)
 
       (update-list-widget db "code" (list "name") "program" "vptest" #f)
       ))
