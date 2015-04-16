@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/main"
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content">
+  <!-- Dummy item to prevent TextView from receiving focus -->
+  <LinearLayout
+      android:focusable="true" android:focusableInTouchMode="true"
+      android:layout_width="0px" android:layout_height="0px"/>
+</LinearLayout>
