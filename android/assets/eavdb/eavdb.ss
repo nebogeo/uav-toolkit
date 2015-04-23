@@ -33,15 +33,11 @@
 
 (provide (all-defined-out))
 
-(msg "hello from eavdb.ss")
-
 (define (upgrade-table db name)
   (db-exec db (string-append "alter table " name " add version integer")))
 
-
 ;; create eav tables (add types as required)
 (define (setup db table)
-  (msg "db setup")
   (db-exec db (string-append "create table " table "_entity ( entity_id integer primary key autoincrement, entity_type varchar(256), unique_id varchar(256), dirty integer, version integer)"))
   (db-exec db (string-append "create index if not exists index_" table "_entity on " table "_entity (unique_id)"))
 

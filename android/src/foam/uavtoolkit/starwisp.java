@@ -70,6 +70,8 @@ public class starwisp extends StarwispActivity
         ActivityManager.RegisterActivity("lock",LockActivity.class);
         ActivityManager.RegisterActivity("review",ReviewActivity.class);
         ActivityManager.RegisterActivity("review-item",ReviewItemActivity.class);
+        ActivityManager.RegisterActivity("log",LogActivity.class);
+        ActivityManager.RegisterActivity("about",AboutActivity.class);
     };
 
     /** Called when the activity is first created. */

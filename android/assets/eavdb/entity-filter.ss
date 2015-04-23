@@ -127,7 +127,6 @@
 	       (list db q)
 	       (build-args filter)
 	       (list type)))))
-      (msg (db-status db))
       (if (null? s)
 	  '()
 	  (map
@@ -143,7 +142,6 @@
              (list db q)
              (build-args filter)
              (if (equal? type "*") '() (list type))))))
-    (msg (db-status db))
     (if (null? s)
         '()
         (map

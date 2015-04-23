@@ -453,6 +453,7 @@
 (define (image-view id image layout) (list "image-view" id image layout))
 (define (camera-preview id layout) (list "camera-preview" id layout))
 (define (text-view id text size layout) (list "text-view" id text size layout))
+(define (text-view-left id text size layout) (list "text-view" id text size layout 'left))
 (define (debug-text-view id text size layout) (list "debug-text-view" id text size layout))
 (define (web-view id data layout) (list "web-view" id data layout))
 (define (edit-text id text size type layout listener) (list "edit-text" id text size type layout listener))
@@ -509,6 +510,8 @@
   (list "date-picker-dialog" 0 "date-picker-dialog" name fn))
 (define (alert-dialog name msg fn)
   (list "alert-dialog" 0 "alert-dialog" name fn msg))
+(define (ok-dialog name msg fn)
+  (list "ok-dialog" 0 "ok-dialog" name fn msg))
 (define (dialog-type d) (list-ref d 2))
 (define (dialog-name d) (list-ref d 3))
 (define (dialog-fn d) (list-ref d 4))
@@ -873,7 +876,7 @@
 (define (top-callback type activity-name activity args)
   ;;(display "activity/fragment-callback ")(display type)(display " ")(display args)(newline)
   (if (not activity)
-      (begin (display "no activity/fragment called ")(display activity-name)(newline))
+      (begin)
       (let ((ret (cond
                   ;; todo update activity...?
                   ((eq? type 'on-create) ((activity-on-create activity) activity (car args)))
@@ -903,7 +906,7 @@
   (prof-start "widget-callback")
   (let ((cb (find-callback widget-id)))
     (if (not cb)
-        (msg "no widget" widget-id "found!")
+        (when (not (zero? widget-id)) (msg "no widget" widget-id "found!"))
         (let ((events
                (cond
                 ((equal? (callback-type cb) "edit-text")
@@ -936,7 +939,7 @@
 (define (run-draggable-callback activity-name widget-id args)
   (let ((cb (find-callback widget-id)))
     (if (not cb)
-        (msg "no widget" widget-id "found!")
+        (when (not (zero? widget-id)) (msg "no widget" widget-id "found!"))
         (send ((callback-fn cb))))))
 
 (alog "lib.scm done")

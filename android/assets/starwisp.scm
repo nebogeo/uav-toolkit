@@ -18,7 +18,6 @@
 
 
 ;; colours
-(msg "starting up....")
 (define entity-types (list "user-data"))
 
 (define trans-col (list 0 0 0 0))
@@ -37,9 +36,8 @@
 (define settings-entity-id-version 2)
 
 (define (insert-if-not-exists-name db table type name ktv-list)
-  (msg "insert-if-not-exists-name")
   (when
-   (null? (dbg (filter-entities-inc-deleted db table type (list (list "name" "varchar" "=" name)))))
+   (null? (filter-entities-inc-deleted db table type (list (list "name" "varchar" "=" name))))
    (insert-entity db table type "sys" ktv-list)))
 
 (insert-entity-if-not-exists
@@ -158,7 +156,6 @@
          ((> (gps-distance (get-current 'location '(0 0))
                            (get-current 'last-moved-location '(0 0)))
              ,(car args))
-          (msg "moved cb happened")
           (set-current! 'last-moved-location (get-current 'location '(0 0)))
           (append ,@(cdr args)))
          (else
@@ -187,11 +184,8 @@
         (else r)))
      #f
      (get-current 'location-list '()))
-    (msg "inside")
     #f)
    (else
-    (msg "outside")
-    (alog "adding...")
     (set-current! 'location-list (cons (get-current 'location '(0 0)) (get-current 'location-list '())))
     #t)))
 
@@ -207,7 +201,6 @@
            (number->string (length (get-current 'location-list '()))))))
         (cond
          ((new-location? ,(car args))
-          (msg "new location cb happened")
           (set-current! 'last-moved-location (get-current 'location '(0 0)))
           (append ,@(cdr args)))
          (else
@@ -248,12 +241,9 @@
          ;; take a photo at the end...
          ;; only set the filename once, reuse it for multiple references
          (when (equal? photo-name "")
-               (msg "setting photo-name to" (cadr i))
                (set! photo-name (cadr i)))
          (append r (list (ktv "photo" "file" photo-name))))
         (else
-         (msg "saving something other than a photo")
-         (msg i)
          (append r (sensor->ktv-list i)))))
      '()
      data)))
@@ -284,16 +274,16 @@
   (list
    (if data
        (if (string? data)
-           (toast data)
+           (toast-size data 10)
            (toast-size
-            (dbg (foldl
-                  (lambda (d r)
-                    (if d
-                        (string-append r " " (escape-quotes (scheme->json d)))
-                        (string-append r " no data yet...")))
-                  "" (dbg data)))
+            (foldl
+             (lambda (d r)
+               (if d
+                   (string-append r " " (escape-quotes (scheme->json d)))
+                   (string-append r " no data yet...")))
+             "" data)
             10))
-       (toast "no data yet..."))))
+       (toast-size "no data yet..." 10))))
 
 (define (get-sensor-value type)
   ;; add to the list of sensor if it's not there yet
@@ -303,7 +293,6 @@
     (if item (list (sensor-type->string (car item)) (cadr item)) #f)))
 
 (define (get-camera-property name)
-  (msg camera-properties)
   (let ((found (assoc name camera-properties)))
     (if found (cadr found) #f)))
 
@@ -352,7 +341,6 @@
   (number->string did))
 
 (define (inner-code-blockify code)
-  (msg "inner:" code)
   (cond
    ((null? code) (code-block "list" '()))
    ((number? code) (number-code-block code))
@@ -369,18 +357,17 @@
    (else (code-block "error" '()))))
 
 (define (text->code-block text)
-  (msg "text->codeblock" text)
   (let ((code (json/parse-string text)))
     (map inner-code-blockify code)))
 
 (define (load-code)
-  (msg "loading code")
-  (text->code-block (dbg (entity-get-value "text"))))
+  (text->code-block (entity-get-value "text")))
 
 (define (code-block text children)
   (cond
    ;; dispatch to special forms
    ((equal? text "text") (text-code-block text '()))
+   ((equal? text "number") (number-code-block 0))
    (else
     (let ((id (new-id)))
       (draggable
@@ -389,7 +376,14 @@
        (if (code-block-atom? text) "drag-only" "normal")
        (append
         (list
-         (text-view 0 text 30 wrap))
+         (horiz (text-view 0 text 30 wrap)
+                (space (layout 40 40 1 'centre 0))
+                (button (make-id (string-append id "-code-block-help"))
+                        "?" 20 (layout 40 40 -1 'centre 0)
+                        (lambda ()
+                          (list (ok-dialog "help"
+                                           (cadr (assoc text dox))
+                                           (lambda () '())))))))
         children)
        (lambda ()
          (scheme->json
@@ -403,14 +397,15 @@
      'vertical wrap (list 255 255 255 255)
      "drag-only"
      (list
-      (edit-text (make-id (string-append id "-edit"))
-                 (number->string num) 30 "numeric" wrap
-                 (lambda (v)
-                   ;; clearly this is dubious, but it works...!
-                   (set! num (string->number v))
-                   '())))
+      (horiz
+       (edit-text (make-id (string-append id "-edit"))
+                  (number->string num) 30 "numeric" wrap
+                  (lambda (v)
+                    ;; clearly this is dubious, but it works...!
+                    (set! num (string->number v))
+                    '()))
+       (space (layout 40 40 1 'centre 0))))
      (lambda ()
-       (msg "running number code block cb")
        (scheme->json (list 1 num))))))
 
 (define (text-code-block text)
@@ -420,15 +415,16 @@
      'vertical wrap (list 255 255 255 255)
      "drag-only"
      (list
-      (edit-text (make-id (string-append id "-edit"))
-                 text 30 "normal" wrap
-                 (lambda (v)
-                   ;; clearly this is dubious, but it works...!
-                   (set! text v)
-                   '())))
+      (horiz
+       (edit-text (make-id (string-append id "-edit"))
+                  text 30 "normal" wrap
+                  (lambda (v)
+                    ;; clearly this is dubious, but it works...!
+                    (set! text v)
+                    '()))
+       (space (layout 40 40 1 'centre 0))))
      (lambda ()
-       (msg "running text code block cb")
-       (dbg (scheme->json (list 1 (dbg (string-append "\\\"" text "\\\"")))))))))
+       (scheme->json (list 1 (string-append "\\\"" text "\\\"")))))))
 
 
 ;; start with some default sensors
@@ -441,16 +437,13 @@
 
 ;; top level eval
 (define (eval-blocks t)
-  (msg "evaling->" t)
-
-
   (append
-   (dbg (foldl (lambda (sexp r)
-                 (append (eval sexp) r)) '() t) )
+   (foldl (lambda (sexp r)
+            (append (eval sexp) r)) '() t)
    (list
     (sensors-start
      "start-sensors"
-     (dbg (get-current 'sensors '()))
+     (get-current 'sensors '())
      (lambda (data)
        (set-current! 'sensor-values
                      (addv
@@ -459,15 +452,59 @@
                             (cdr (cdr (cdr (cdr data)))))))
        '())))))
 
+(define dox
+  (list
+   (list "when-timer" "Triggers actions (green blocks) added to this block, the top item should be a number - the period in seconds to trigger things.")
+   (list "when-moved-metres"  "Triggers actions (green blocks) added to this block using GPS, the top item should be a number - the distance in metres to trigger things.")
+   (list "when-in-new-location" "The same as when-moved-metres, but triggers actions based on distance in metres to all previous trigger locations. The top item should be a number - the distance in metres.")
+   (list "show" "Display all the values contained by this block - for testing e.g. sensor data.")
+   (list "noise" "Play a sound, useful for indication of actions while the screen is turned off.")
+   (list "shake" "Fire the vibration motor for a short time, useful for indication of actions while the screen is turned off - but don't do this while taking pictures :)")
+   (list "save-to-db" "Saves all the data contained in this block (sensors or take-picture etc) as a database record. The top item needs to be a text block with the name to give the record type (can be anything).")
+   (list "accelerometer" "Returns the data from your accelerometer sensor, takes no other blocks.")
+   (list "ambient-temperature" "Returns the data from your temperature sensor, takes no other blocks.")
+   (list "game-rotation-vector" "Returns rotation data (fast mode), takes no other blocks.")
+   (list "gravity" "Returns the data from the gravity sensor, takes no other blocks.")
+   (list "gyroscope" "Returns rotation data from the gyroscope sensor, takes no other blocks.")
+   (list "gyroscope-uncalibrated" "Uncalibrated data from the gyroscope, takes no other blocks.")
+   (list "light" "Returns the data from the light sensor, takes no other blocks.")
+   (list "linear-acceleration" "Returns the data from the accelerometer sensor, takes no other blocks.")
+   (list "magnetic-field" "Returns the data from the magnetic field sensor (direction of 'north'), takes no other blocks.")
+   (list "magnetic-field-uncalibrated" "Returns the uncalibrated data from the magnetic field sensor, takes no other blocks.")
+   (list "orientation" "Returns orientation calculated from combination of other sensors, takes no other blocks.")
+   (list "pressure" "Returns the data from the air pressure sensor, takes no other blocks.")
+   (list "proximity" "Returns the data from the proximity sensor (used to turn off the screen when your head is close), takes no other blocks.")
+   (list "relative-humidity" "Returns the data from the relative humidity sensor, takes no other blocks.")
+   (list "rotation-vector" "Returns the data from the rotation-vector sensor (slow mode), takes no other blocks.")
+   (list "significant-motion" "Returns the data from the significant motion sensor, takes no other blocks.")
+   (list "gps" "Returns the GPS latitude/longitude data, takes no other blocks.")
+   (list "take-photo" "Triggers the camera and returns the filename. The image is stored in sdcard/uavtools/files. Put in a save-to-db block with sensors to link photos with sensor data.")
+   (list "camera-horiz-angle" "The horizontal viewing angle of the camera")
+   (list "camera-vert-angle" "The vertical viewing angle of the camera")
+   (list "text" "Allows you to enter free text (for names of database record types)")
+   (list "number" "Allows you to enter numbers")
+   (list "+" "Useful for adding things together. Takes any number of blocks.")
+   (list "-" "Useful for taking numbers away from each other. Takes any number of blocks.")
+   (list "/" "Useful for dividing a number by another one. Takes any number of blocks.")
+   (list "*" "Useful for multiplying numbers together. Takes any number of blocks.")
+   (list "sin" "Mathematical sine function. Takes one number block in radians.")
+   (list "cos" "Mathematical cosine function. Takes one number block in radians.")
+   (list "tan" "Mathematical tangent function. Takes one number block in radians.")
+   (list "asin" "Arc sine function. Takes one number block.")
+   (list "acos" "Arc cosine function. Takes one number block.")
+   (list "atan" "Arc tangent function. Takes one number block.")
+   (list "modulo" "Modulus of one number by another. Takes two number blocks.")
+   (list "pow" "Mathematical power function, takes two number blocks.")
+   (list "to-radians" "Converts degrees to radians. Takes one number block.")
+  ))
 
+(define trigger-colour (list 255 200 100 255))
+(define trigger-functions
+  (list "when-timer" "when-moved-metres" "when-in-new-location"))
 
-(define control-colour (list 255 200 100 255))
-(define control-functions
-  (list "when-timer" "when-moved-metres" "when-in-new-location" "when-update" "when-pressed" "append"))
-
-(define data-colour (list 200 255 100 255))
-(define data-functions
-  (list "save-to-db" "load-from-db" "text" "1"))
+(define action-colour (list 200 255 100 255))
+(define action-functions
+  (list "show" "noise" "shake" "save-to-db"))
 
 (define sensor-colour (list 255 100 200 255))
 (define sensor-functions
@@ -498,37 +535,29 @@
 
 (define (camera-vert-angle)
   (let ((v (get-camera-property 'vert-angle)))
-    (msg v)
     v))
 
 (define maths-colour (list 200 100 255 255))
 (define maths-functions
-  (list "+" "-" "/" "*" "sin" "cos" "tan" "asin" "acos" "atan" "modulo" "pow" "to-radians" "300" "\\\"hello world\\\""))
-
-(define display-colour (list 100 255 200 255))
-(define display-functions
-  (list "show" "noise" "shake"))
+  (list "text" "number" "+" "-" "/" "*" "sin" "cos" "tan" "asin" "acos" "atan" "modulo" "pow" "to-radians"))
 
 (define (code-block-colour text)
   (cond
-   ((string-in-list-fast text control-functions) control-colour)
-   ((string-in-list-fast text data-functions) data-colour)
+   ((string-in-list-fast text trigger-functions) trigger-colour)
+   ((string-in-list-fast text action-functions) action-colour)
    ((string-in-list-fast text sensor-functions) sensor-colour)
    ((string-in-list-fast text maths-functions) maths-colour)
-   ((string-in-list-fast text display-functions) display-colour)
    (else (list 255 0 255 255))))
 
 (define (code-block-known? text)
   (or
-   (string-in-list-fast text control-functions)
-   (string-in-list-fast text data-functions)
+   (string-in-list-fast text trigger-functions)
+   (string-in-list-fast text action-functions)
    (string-in-list-fast text sensor-functions)
-   (string-in-list-fast text maths-functions)
-   (string-in-list-fast text display-functions)))
+   (string-in-list-fast text maths-functions)))
 
 (define (code-block-atom? text)
   (string-in-list-fast text (append '("300"))))
-
 
 (define (build-menu fns)
   (append
@@ -641,7 +670,6 @@
     (map
      (lambda (e)
        (let* ((uid (ktv-get e "unique_id")))
-         (msg e)
          (button
           (make-id (string-append "review-" uid))
           (string-append (ktv-get e "name") " " (ktv-get e "time"))
@@ -669,11 +697,10 @@
       0 fillwrap
       (list
        (horiz
-        (mbutton-scale 'control (lambda () (build-menu control-functions)))
-        (mbutton-scale 'data (lambda () (build-menu data-functions)))
+        (mbutton-scale 'triggers (lambda () (build-menu trigger-functions)))
+        (mbutton-scale 'actions (lambda () (build-menu action-functions)))
         (mbutton-scale 'sensors (lambda () (build-menu sensor-functions)))
         (mbutton-scale 'maths (lambda () (build-menu maths-functions)))
-        (mbutton-scale 'display (lambda () (build-menu display-functions)))
         )))
      (scroll-view-vert
       0 fillwrap
@@ -715,7 +742,7 @@
    "main"
    (vert
     (image-view 0 "logo" (layout 'wrap-content 'wrap-content -1 'centre 0))
-    (text-view (make-id "version") app-version 20 fillwrap)
+    (text-view (make-id "version") (string-append "beta/experimental " (number->string app-version)) 20 fillwrap)
 
     (scroll-view-vert
      0 (layout 'fill-parent 'wrap-content 0.75 'centre 0)
@@ -726,17 +753,11 @@
        (list 0 0 0 0)
        (list
      (button
-      (make-id "main-sensors")
-      "Peek at your sensors"
+      (make-id "about-button")
+      "About"
       30 (layout 'fill-parent 'wrap-content -1 'centre 5)
       (lambda ()
-        (list (start-activity "sensor" 0 ""))))
-     (button
-      (make-id "main-camera")
-      "Check the camera"
-      30 (layout 'fill-parent 'wrap-content -1 'centre 5)
-      (lambda ()
-        (list (start-activity "camera" 0 ""))))
+        (list (start-activity "about" 0 ""))))
 
      (build-list-widget db "code" 'programs (list "name") "program" "vptest"
                         (lambda () #f)
@@ -752,6 +773,19 @@
       30 (layout 'fill-parent 'wrap-content -1 'centre 5)
       (lambda ()
         (list (start-activity "review" 0 ""))))
+
+     (button
+      (make-id "main-sensors")
+      "Peek at your sensors"
+      30 (layout 'fill-parent 'wrap-content -1 'centre 5)
+      (lambda ()
+        (list (start-activity "sensor" 0 ""))))
+     (button
+      (make-id "main-camera")
+      "Check the camera"
+      30 (layout 'fill-parent 'wrap-content -1 'centre 5)
+      (lambda ()
+        (list (start-activity "camera" 0 ""))))
 
      ))))
     )
@@ -797,7 +831,7 @@
         (list
          (sensors-start
           "start-sensors"
-          (dbg (list
+          (list
            sensor-accelerometer
            sensor-ambient-temperature
            sensor-game-rotation-vector
@@ -813,7 +847,7 @@
            sensor-proximity
            sensor-relative-humidity
            sensor-rotation-vector
-           sensor-significant-motion))
+           sensor-significant-motion)
           (lambda (data)
             (list
              (update-widget
@@ -853,7 +887,7 @@
                              (list 255 255 0 255)
                              (list
                               (text-view (make-id (list-ref sensor 0)) (list-ref sensor 0) 20 fillwrap)
-                              (text-view (make-id (dbg (string-append (list-ref sensor 0) "-values")))
+                              (text-view (make-id (string-append (list-ref sensor 0) "-values"))
                                          "Nothing yet..." 15 fillwrap))))
                           data)))))
       ))
@@ -960,8 +994,7 @@
           (walk-draggable
            "eval-walk" (get-id "block-root")
            (lambda (t)
-             (msg "save code")
-             (entity-set-value! "text" "varchar" (dbg (scheme->json t)))
+             (entity-set-value! "text" "varchar" (scheme->json t))
              (entity-update-values!)
              (list
               (toast (string-append "saved"))))))))
@@ -987,7 +1020,6 @@
          "drop-only"
          (list)
          (lambda ()
-           (msg "root cb")
            (scheme->json (list 0 ""))))
 
         (horiz
@@ -1007,7 +1039,15 @@
                         (else
                          (list))))))))
 
-         (delete-button))
+         (delete-button)
+
+         (button (make-id "log-button")
+                 "error log" 30 (layout 'fill-parent 'wrap-content 1 'centre 5)
+                 (lambda ()
+                   (list
+                    (start-activity "log" 0 ""))))
+
+         )
 
         (camera-preview (make-id "camerap") (layout 'fill-parent 320 1 'left 0)))
 
@@ -1026,14 +1066,12 @@
        "drop-only-consume"
        (list (mtext 'rubbish-bin))
        (lambda ()
-         (msg "rubbish bin cb")
          (scheme->json (list 0 ""))))))
 
    )
    (lambda (activity arg)
      (activity-layout activity))
    (lambda (activity arg)
-     (msg "getting entity " arg)
      (entity-init! db "code" "program" (get-entity-by-unique db "code" arg))
      (set-current! 'camera-preview-id (get-id "camerap"))
      (list
@@ -1070,7 +1108,6 @@
      "drop-only"
      (list)
      (lambda ()
-       (msg "root cb")
        (scheme->json (list 0 ""))))
 
     (camera-preview (make-id "lock-camerap") (layout 'fill-parent 320 1 'left 0))
@@ -1156,6 +1193,77 @@
    (lambda (activity) '())
    (lambda (activity) '())
    (lambda (activity requestcode resultcode) '()))
+
+  (activity
+   "log"
+   (scroll-view-vert
+    0 (layout 'fill-parent 'wrap-content 1 'left 0)
+    (list
+     (vert
+      (text-view-left (make-id "log-view") "" 20 (layout 'fill-parent 'fill-parent 1 'left 0))
+      (button (make-id "exit-button")
+              "Exit" 20 (layout 'fill-parent 'wrap-content 1 'left 5)
+              (lambda ()
+                (list (finish-activity 1)))))))
+   (lambda (activity arg)
+     (activity-layout activity))
+   (lambda (activity arg)
+     (list
+      (update-widget 'text-view (get-id "log-view") 'file "sdcard/jellyfish-log.txt")))
+   (lambda (activity) '())
+   (lambda (activity) '())
+   (lambda (activity) '())
+   (lambda (activity) '())
+   (lambda (activity requestcode resultcode) '()))
+
+
+  (activity
+   "about"
+
+   (scroll-view-vert
+    0 (layout 'fill-parent 'wrap-content 1 'centre 0)
+    (list
+     (vert
+      (image-view 0 "logo" (layout 300 'fill-parent 1 'centre 0))
+      (text-view
+       0
+       "The UAV toolkit is an experimental application for making use of your smartphone's sensors for airborne science. It's main purpose is using time or space based triggers to capture images with associated sensor data for further processing."
+       20 (layout 'fill-parent 'wrap-content -1 'centre 10))
+
+      (text-view 0 "Credits" 30 (layout 'fill-parent 'wrap-content -1 'centre 5) 'centre)
+
+      (text-view 0 "Karen Anderson: team leader and chief kite wranger" 20 (layout 'fill-parent 'wrap-content -1 'centre 0))
+      (text-view 0 "Steve Hancock: extreme flight testing and duct tape" 20 (layout 'fill-parent 'wrap-content -1 'centre 0))
+      (text-view 0 "James Duffy: drone test pilot and precise landings" 20 (layout 'fill-parent 'wrap-content -1 'centre 0))
+      (text-view 0 "Leon DeBell:  3d printing and drone mechanics" 20 (layout 'fill-parent 'wrap-content -1 'centre 0))
+      (text-view 0 "Liam Reinhardt: kite handler and knot consultant" 20 (layout 'fill-parent 'wrap-content -1 'centre 0))
+      (text-view 0 "Dave Griffiths: code monkey and software design" 20 (layout 'fill-parent 'wrap-content -1 'centre 0))
+      (spacer 20)
+      (text-view 0 "Free/Open Source software assembled in Cornwall by Foam Kernow" 20 (layout 'fill-parent 'wrap-content -1 'centre 10))
+      (image-view 0 "foam" (layout 'wrap-content 'wrap-content -1 'centre 0))
+
+      (spacer 20)
+      (text-view 0 "Supported by" 20 (layout 'fill-parent 'wrap-content -1 'centre 10))
+      (image-view 0 "exeter" (layout 'wrap-content 'fill-parent -1 'centre 0))
+      (text-view 0 "Environment and Sustainability Institute" 20 (layout 'fill-parent 'wrap-content -1 'centre 10))
+
+      (spacer 20)
+      (button (make-id "about-back-button")
+              "Back" 20 (layout 'fill-parent 'wrap-content 1 'left 5)
+              (lambda ()
+                (list (finish-activity 1))))
+
+      )))
+   (lambda (activity arg)
+     (activity-layout activity))
+   (lambda (activity arg) '())
+   (lambda (activity) '())
+   (lambda (activity) '())
+   (lambda (activity) '())
+   (lambda (activity) '())
+   (lambda (activity requestcode resultcode) '()))
+
+
 
 
   )

@@ -15,8 +15,6 @@
 
 ;; abstractions for synced databased
 
-(msg "dbsync.scm")
-
 (define unset-int 2147483647)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -77,7 +75,6 @@
 ;;    (ktv key type value))))
 
 (define (entity-add-value-create! key type value)
-  (msg "entity-add-value-create!" key type value)
   (set-current!
    'entity-values
    (ktv-set
@@ -161,7 +158,6 @@
     (let ((r (insert-entity/get-unique
               db table entity-type (get-current 'user-id "no id")
               values)))
-      (msg "entity-create: " entity-type)
       r)))
 
 
@@ -315,7 +311,6 @@
         (string-append "req-" (list-ref (car e) 1))
         (build-url-from-entity table e)
         (lambda (v)
-          (msg "in spit..." v)
           (cond
            ((or (equal? (car v) "inserted") (equal? (car v) "match"))
             (update-entity-clean db table (cadr v))
@@ -355,8 +350,6 @@
                  r))
          r))
    '() ktvlist))
-
-(msg "suck ent")
 
 (define (suck-entity-from-server db table unique-id)
   ;; ask for the current version
@@ -409,7 +402,6 @@
    version-data))
 
 (define (mark-unlisted-entities-dirty! db table version-data)
-  (msg "mark-unlisted...")
   ;; load all local entities
   (let ((ids (all-unique-ids db table))
         (server-ids (map car version-data)))
@@ -456,8 +448,6 @@
           (cons
            (play-sound "active")
            new-entity-requests))))))))
-
-(msg "build-dirty defined...")
 
 (define (build-dirty db)
   (let ((sync (get-dirty-stats db "sync")))
