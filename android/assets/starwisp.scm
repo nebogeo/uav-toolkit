@@ -301,10 +301,12 @@
 (define (accelerometer) (get-sensor-value sensor-accelerometer))
 (define (ambient-temperature) (get-sensor-value sensor-ambient-temperature))
 (define (game-rotation-vector) (get-sensor-value sensor-game-rotation-vector))
+(define (geomagnetic-rotation-vector) (get-sensor-value sensor-geomagnetic-rotation-vector))
 (define (gravity) (get-sensor-value sensor-gravity))
 (define (gyroscope) (get-sensor-value sensor-gyroscope))
 (define (gyroscope-uncalibrated) (get-sensor-value sensor-gyroscope-uncalibrated))
 (define (light) (get-sensor-value sensor-light))
+(define (heart-rate) (get-sensor-value sensor-heart-rate))
 (define (linear-acceleration) (get-sensor-value sensor-linear-acceleration))
 (define (magnetic-field) (get-sensor-value sensor-magnetic-field))
 (define (magnetic-field-uncalibrated) (get-sensor-value sensor-magnetic-field-uncalibrated))
@@ -314,15 +316,19 @@
 (define (relative-humidity) (get-sensor-value sensor-relative-humidity))
 (define (rotation-vector) (get-sensor-value sensor-rotation-vector))
 (define (significant-motion) (get-sensor-value sensor-significant-motion))
+(define (step-counter) (get-sensor-value sensor-step-counter))
+(define (step-detector) (get-sensor-value sensor-step-detector))
 
 (define (sensor-type->string s)
   (cond
    ((equal? s sensor-accelerometer) "accelerometer")
    ((equal? s sensor-ambient-temperature) "ambient-temperature")
    ((equal? s sensor-game-rotation-vector) "game-rotation-vector")
+   ((equal? s sensor-geomagnetic-rotation-vector) "geomagnetic-rotation-vector")
    ((equal? s sensor-gravity) "gravity")
    ((equal? s sensor-gyroscope) "gyroscope")
    ((equal? s sensor-gyroscope-uncalibrated) "gyroscope-uncalibrated")
+   ((equal? s sensor-heart-rate) "heart-rate")
    ((equal? s sensor-light) "light")
    ((equal? s sensor-linear-acceleration) "linear-acceleration")
    ((equal? s sensor-magnetic-field) "magnetic-field")
@@ -330,8 +336,9 @@
    ((equal? s sensor-orientation) "orientation")
    ((equal? s sensor-pressure) "pressure")
    ((equal? s sensor-proximity) "proximity")
+   ((equal? s sensor-step-counter) "step-counter")
+   ((equal? s sensor-step-detector) "step-detector")
    (else "unknown-sensor")))
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -464,10 +471,12 @@
    (list "accelerometer" "Returns the data from your accelerometer sensor, takes no other blocks.")
    (list "ambient-temperature" "Returns the data from your temperature sensor, takes no other blocks.")
    (list "game-rotation-vector" "Returns rotation data (fast mode), takes no other blocks.")
+   (list "geomagnetic-rotation-vector" "Returns geomagnetic rotation data (fast mode), takes no other blocks.")
    (list "gravity" "Returns the data from the gravity sensor, takes no other blocks.")
    (list "gyroscope" "Returns rotation data from the gyroscope sensor, takes no other blocks.")
    (list "gyroscope-uncalibrated" "Uncalibrated data from the gyroscope, takes no other blocks.")
    (list "light" "Returns the data from the light sensor, takes no other blocks.")
+   (list "heart-rate" "Returns the data from the heart rate sensor, takes no other blocks.")
    (list "linear-acceleration" "Returns the data from the accelerometer sensor, takes no other blocks.")
    (list "magnetic-field" "Returns the data from the magnetic field sensor (direction of 'north'), takes no other blocks.")
    (list "magnetic-field-uncalibrated" "Returns the uncalibrated data from the magnetic field sensor, takes no other blocks.")
@@ -477,6 +486,8 @@
    (list "relative-humidity" "Returns the data from the relative humidity sensor, takes no other blocks.")
    (list "rotation-vector" "Returns the data from the rotation-vector sensor (slow mode), takes no other blocks.")
    (list "significant-motion" "Returns the data from the significant motion sensor, takes no other blocks.")
+   (list "step-counter" "Returns the data from the step counter sensor, takes no other blocks.")
+   (list "step-detector" "Returns the data from the step detector sensor, takes no other blocks.")
    (list "gps" "Returns the GPS latitude/longitude data, takes no other blocks.")
    (list "take-photo" "Triggers the camera and returns the filename. The image is stored in sdcard/uavtools/files. Put in a save-to-db block with sensors to link photos with sensor data.")
    (list "camera-horiz-angle" "The horizontal viewing angle of the camera")
@@ -512,10 +523,12 @@
   "accelerometer"
   "ambient-temperature"
   "game-rotation-vector"
+  "geomagnetic-rotation-vector"
   "gravity"
   "gyroscope"
   "gyroscope-uncalibrated"
   "light"
+  "heart-rate"
   "linear-acceleration"
   "magnetic-field"
   "magnetic-field-uncalibrated"
@@ -528,7 +541,9 @@
   "gps"
   "take-photo"
   "camera-horiz-angle"
-  "camera-vert-angle"))
+  "camera-vert-angle"
+  "step-counter"
+  "step-detector"))
 
 (define (camera-horiz-angle)
   (get-camera-property 'horis-angle)) ;; sic
