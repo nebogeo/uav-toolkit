@@ -173,6 +173,11 @@
      (list
       (delayed "when-timer" (* 1000 ,(car args)) when-timer-cb))))
 
+(define (sensor-value s i) (list-ref (cadr s) i))
+
+(define (between v l h)
+  (and (> v l) (<= v h)))
+
 (define (new-location? dist)
   (cond
    ((foldl ;; are we inside the radius of any previous location?
@@ -285,6 +290,7 @@
             10))
        (toast-size "no data yet..." 10))))
 
+;; returns (sensor-type (value0 value1 ...))
 (define (get-sensor-value type)
   ;; add to the list of sensor if it's not there yet
   (set-current! 'sensors (set-add type (get-current 'sensors '())))
@@ -446,6 +452,7 @@
 (define (eval-blocks t)
   (append
    (foldl (lambda (sexp r)
+            (msg sexp)
             (append (eval sexp) r)) '() t)
    (list
     (sensors-start
@@ -511,7 +518,7 @@
 
 (define trigger-colour (list 255 200 100 255))
 (define trigger-functions
-  (list "when-timer" "when-moved-metres" "when-in-new-location"))
+  (list "when-timer" "when-moved-metres" "when-in-new-location" "when"))
 
 (define action-colour (list 200 255 100 255))
 (define action-functions
@@ -554,7 +561,10 @@
 
 (define maths-colour (list 200 100 255 255))
 (define maths-functions
-  (list "text" "number" "+" "-" "/" "*" "sin" "cos" "tan" "asin" "acos" "atan" "modulo" "pow" "to-radians"))
+  (list "text" "number" "+" "-" "/" "*" "<" ">" ">=" "<="
+        "sin" "cos" "tan" "asin" "acos" "atan" "modulo" "pow"
+        "and" "or" "not"
+        "to-radians" "between" "sensor-value"))
 
 (define (code-block-colour text)
   (cond
@@ -727,15 +737,12 @@
    (lambda (fragment arg)
      (activity-layout fragment))
    (lambda (fragment arg)
-     (append
-      (build-menu control-functions)
-      (list
-       (update-widget 'button (get-id "control") 'background-colour control-colour)
-       (update-widget 'button (get-id "data") 'background-colour data-colour)
-       (update-widget 'button (get-id "sensors") 'background-colour sensor-colour)
-       (update-widget 'button (get-id "maths") 'background-colour maths-colour)
-       (update-widget 'button (get-id "display") 'background-colour display-colour)
-       )))
+     (list
+      (update-widget 'button (get-id "triggers") 'background-colour trigger-colour)
+      (update-widget 'button (get-id "sensors") 'background-colour sensor-colour)
+      (update-widget 'button (get-id "maths") 'background-colour maths-colour)
+      (update-widget 'button (get-id "actions") 'background-colour action-colour)
+      ))
    (lambda (fragment) '())
    (lambda (fragment) '())
    (lambda (fragment) '())
