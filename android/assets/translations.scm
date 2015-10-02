@@ -11,6 +11,7 @@
    (list 'rubbish-bin (list "rubbish bin"))
    (list 'code (list "code"))
    (list 'programs (list "programs"))
+   (list 'functions (list "functions"))
    (list 'list-empty (list "no programs yet"))
    (list 'program-name (list "program name"))
    (list 'delete (list "delete"))

@@ -72,6 +72,7 @@ public class starwisp extends StarwispActivity
         ActivityManager.RegisterActivity("review-item",ReviewItemActivity.class);
         ActivityManager.RegisterActivity("log",LogActivity.class);
         ActivityManager.RegisterActivity("about",AboutActivity.class);
+        ActivityManager.RegisterActivity("library",LibraryActivity.class);
     };
 
     /** Called when the activity is first created. */
@@ -134,6 +135,9 @@ public class starwisp extends StarwispActivity
 
         // pass in a bunch of useful stuff
         DeclareSensors();
+
+        m_Scheme.Load("review-data.scm");
+        m_Scheme.Load("uav-toolkit.scm");
 
         Log.i("starwisp","started, now running starwisp.scm...");
         m_Scheme.eval(m_Scheme.readRawTextFile(this, "translations.scm"));

@@ -26,6 +26,7 @@
     <activity android:name="foam.uavtoolkit.ReviewItemActivity" android:configChanges="orientation"></activity>
     <activity android:name="foam.uavtoolkit.LogActivity" android:configChanges="orientation"></activity>
     <activity android:name="foam.uavtoolkit.AboutActivity" android:configChanges="orientation"></activity>
+    <activity android:name="foam.uavtoolkit.LibraryActivity" android:configChanges="orientation"></activity>
 
   </application>
 
