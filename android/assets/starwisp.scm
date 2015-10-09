@@ -31,6 +31,7 @@
         (mbutton-scale 'actions (lambda () (build-menu action-functions)))
         (mbutton-scale 'sensors (lambda () (build-menu sensor-functions)))
         (mbutton-scale 'maths (lambda () (build-menu maths-functions)))
+        (mbutton-scale 'library (lambda () (build-menu (get-current 'library-fns '()))))
         )))
      (scroll-view-vert
       0 fillwrap
@@ -48,6 +49,7 @@
       (update-widget 'button (get-id "sensors") 'background-colour sensor-colour)
       (update-widget 'button (get-id "maths") 'background-colour maths-colour)
       (update-widget 'button (get-id "actions") 'background-colour action-colour)
+      (update-widget 'button (get-id "library") 'background-colour library-colour)
       ))
    (lambda (fragment) '())
    (lambda (fragment) '())
@@ -90,7 +92,7 @@
                         (lambda ()
                           (list
                            (ktv "name" "varchar" "a program")
-                           (ktv "text" "varchar" (scheme->json '((when-timer 3 (show "hello world")))))))
+                           (ktv "text" "varchar" (json/gen-string '((when-timer 3 (show "hello world")))))))
                         )
 
 
@@ -127,6 +129,8 @@
    (lambda (activity arg)
      (activity-layout activity))
    (lambda (activity arg)
+     ;; run library code here...
+     (eval-library)
      (list
       ;; start gps here, and run it all the time...
       (gps-start "gps" (lambda (loc)
@@ -161,7 +165,7 @@
                            (lambda ()
                              (list
                               (ktv "name" "varchar" "a program")
-                              (ktv "text" "varchar" (scheme->json '((when-timer 3 (show "hello world")))))))
+                              (ktv "text" "varchar" (json/gen-string '((when-timer 3 (show "hello world")))))))
                            )))))
 
      (button
@@ -372,7 +376,9 @@
           (walk-draggable
            "eval-walk" (get-id "block-root")
            (lambda (t)
-             (entity-set-value! "text" "varchar" (scheme->json t))
+             (msg "saving" t)
+             (msg "&convert" (json/gen-string t))
+             (entity-set-value! "text" "varchar" (json/gen-string t))
              (entity-update-values!)
              (list
               (toast (string-append "saved"))))))))
@@ -398,7 +404,7 @@
          "drop-only"
          (list)
          (lambda ()
-           (scheme->json (list 0 ""))))
+           (json/gen-string (list 0 ""))))
 
         (horiz
          (button (make-id "lock-button")
@@ -444,7 +450,7 @@
        "drop-only-consume"
        (list (mtext 'rubbish-bin))
        (lambda ()
-         (scheme->json (list 0 ""))))))
+         (json/gen-string (list 0 ""))))))
 
    )
    (lambda (activity arg)
@@ -486,7 +492,7 @@
      "drop-only"
      (list)
      (lambda ()
-       (scheme->json (list 0 ""))))
+       (json/gen-string (list 0 ""))))
 
     (camera-preview (make-id "lock-camerap") (layout 'fill-parent 320 1 'left 0))
     )

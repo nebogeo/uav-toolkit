@@ -50,7 +50,7 @@
  db "code" "program" "camera fov 2"
  (list
   (ktv "name" "varchar" "camera fov 2")
-  (ktv "text" "varchar" (scheme->json
+  (ktv "text" "varchar" (json/gen-string
                          '((when-moved-metres
                             (* (tan (to-radians (/ (camera-vert-angle) 2)))
                                (* 30 0.5))
@@ -68,7 +68,7 @@
  db "code" "program" "timed camera 2"
  (list
   (ktv "name" "varchar" "timed camera 2")
-  (ktv "text" "varchar" (scheme->json
+  (ktv "text" "varchar" (json/gen-string
                          '((when-timer
                             3
                             (save-to-db
@@ -86,7 +86,7 @@
  db "code" "program" "new location camera"
  (list
   (ktv "name" "varchar" "new location camera")
-  (ktv "text" "varchar" (scheme->json
+  (ktv "text" "varchar" (json/gen-string
                          '((when-in-new-location
                             (* (tan (to-radians (/ (camera-vert-angle) 2)))
                                (* 30 0.5))
@@ -275,15 +275,18 @@
 
 
 (define (show . data)
+  (msg (length data))
+  (msg data)
+  (string? (car data))
   (list
    (if data
        (if (string? data)
-           (toast-size data 10)
+           (toast-size data 20)
            (toast-size
             (foldl
              (lambda (d r)
                (if d
-                   (string-append r " " (escape-quotes (scheme->json d)))
+                   (string-append r " " (escape-quotes (json/gen-string d)))
                    (string-append r " no data yet...")))
              "" data)
             10))
@@ -354,22 +357,25 @@
 
 (define (inner-code-blockify code)
   (cond
-   ((null? code) (code-block "list" '()))
+   ((null? code) (code-block-list '()))
    ((number? code) (number-code-block code))
-   ((symbol? code) (symbol-code-block code '()))
-   ((string? code)
-    (if (code-block-known? code)
-        (code-block code '())
-        (text-code-block code)))
+   ((string? code) (text-code-block code))
+   ((symbol? code)
+    (if (or (not (code-block-known? code))
+            (eqv? code 'symbol))
+        (symbol-code-block code '())
+        (code-block code '())))
    ((list? code)
-    (if (string? (car code));; ignore first 'list'
+    (if (symbol? (car code));; ignore first 'list'
         (code-block (car code)
                     (map inner-code-blockify (cdr code)))
-        (code-block "list" (map inner-code-blockify code))))
-   (else (code-block "error" '()))))
+        (code-block 'list (map inner-code-blockify code))))
+   (else (code-block 'error '()))))
 
 (define (text->code-block text)
+  (msg "text->code-block" text)
   (let ((code (json/parse-string text)))
+    (msg "&convert" code)
     (map inner-code-blockify code)))
 
 (define (load-code)
@@ -378,15 +384,16 @@
 (define (code-block text children)
   (cond
    ;; dispatch to special forms
-   ((equal? text "text") (text-code-block text '()))
-   ((equal? text "number") (number-code-block 0))
-   ((equal? text "symbol") (symbol-code-block 'symbol))
+   ((eq? text 'text) (text-code-block text '()))
+   ((eq? text 'number) (number-code-block 0))
+   ((eq? text 'symbol) (symbol-code-block 'symbol))
+   ((eq? text 'empty) (code-block-list '()))
    (else
     (let ((id (new-id)))
       (draggable
        (make-id (string-append id "-code-block"))
        'vertical wrap (code-block-colour text)
-       (if (code-block-atom? text) "drag-only" "normal")
+       "normal"
        (append
         (list
          (horiz (text-view 0 text 30 wrap)
@@ -399,9 +406,22 @@
                                            (lambda () '())))))))
         children)
        (lambda ()
-         (scheme->json
-          (list
-           (if (code-block-atom? text) 1 0) text))))))))
+         (json/gen-string
+          (list 0 text))))))))
+
+(define (code-block-list children)
+  (let ((id (new-id)))
+    (draggable
+     (make-id (string-append id "-code-block"))
+     'vertical wrap '(255 255 255 100)
+     "normal"
+     (cons
+      (space (layout 40 40 1 'centre 0))
+      children)
+     (lambda ()
+       (json/gen-string
+        (list 0 ""))))))
+
 
 (define (number-code-block num)
   (let ((id (new-id)))
@@ -419,7 +439,7 @@
                     '()))
        (space (layout 40 40 1 'centre 0))))
      (lambda ()
-       (scheme->json (list 1 num))))))
+       (json/gen-string (list 2 num))))))
 
 (define (text-code-block text)
   (let ((id (new-id)))
@@ -437,14 +457,15 @@
                     '()))
        (space (layout 40 40 1 'centre 0))))
      (lambda ()
-       (scheme->json (list 1 (string-append "\\\"" text "\\\"")))))))
+       ;(json/gen-string (list 1 (string-append "\\\"" text "\\\"")))))))
+       (json/gen-string (list 1 text))))))
 
 (define (symbol-code-block sym)
   (let ((id (new-id))
         (text (symbol->string sym)))
     (draggable
      (make-id (string-append id "-code-block"))
-     'vertical wrap (list 255 255 255 255)
+     'vertical wrap (list 255 100 100 255)
      "drag-only"
      (list
       (horiz
@@ -456,7 +477,7 @@
                     '()))
        (space (layout 40 40 1 'centre 0))))
      (lambda ()
-       (scheme->json (list 1 text))))))
+       (json/gen-string (list 1 (string->symbol text)))))))
 
 
 ;; start with some default sensors
@@ -468,23 +489,36 @@
                         sensor-orientation))
 
 (define (eval-library)
-  (let ((code (all-entities db "code" "function")))
-    (msg code)
-    (for-each
-     (lambda (entity-id)
-       (let ((entity (get-entity db "code" entity-id)))
-         (let ((sexpr (json/parse-string (ktv-get entity "text"))))
-           (msg (string? sexpr))
-           (msg sexpr)
-           (eval '(define xxx 200)))))
-     code)))
+  (set-current! 'library-fns '())
+  (for-each
+   (lambda (entity-id)
+     (let ((entity (get-entity db "code" entity-id)))
+       (let ((name (ktv-get entity "name"))
+             (sexpr (json/parse-string (ktv-get entity "text"))))
+
+         ;; add to list of functions for the library menu
+         (set-current! 'library-fns
+                       (cons name (get-current 'library-fns '())))
+
+         ;; eval in global environment
+         (eval (dbg (list
+                     'define (string->symbol name)
+                     (car sexpr)))
+               (interaction-environment))
+         )))
+   (all-entities db "code" "function")))
+
+(define (find-library-code name)
+  (db-filter db "code" "function" (list (list "name" "varchar" "like" name))))
 
 ;; top level eval
 (define (eval-blocks t)
   (append
    (foldl (lambda (sexp r)
             (msg sexp)
-            (append (eval sexp) r)) '() t)
+            (append (eval sexp) r))
+          '()
+          t)
    (list
     (sensors-start
      "start-sensors"
@@ -549,7 +583,7 @@
 
 (define code-colour (list 100 200 255 255))
 (define code-functions
-  (list "text" "number" "symbol" "list" ""
+  (list "text" "number" "symbol" "empty"
         "when" "and" "or" "not" "lambda"))
 
 (define trigger-colour (list 255 200 100 255))
@@ -588,6 +622,9 @@
   "step-counter"
   "step-detector"))
 
+(define library-colour (list 100 255 200 255))
+
+
 (define (camera-horiz-angle)
   (get-camera-property 'horis-angle)) ;; sic
 
@@ -602,24 +639,28 @@
         "to-radians" "between" "sensor-value"))
 
 (define (code-block-colour text)
-  (cond
-   ((string-in-list-fast text code-functions) code-colour)
-   ((string-in-list-fast text trigger-functions) trigger-colour)
-   ((string-in-list-fast text action-functions) action-colour)
-   ((string-in-list-fast text sensor-functions) sensor-colour)
-   ((string-in-list-fast text maths-functions) maths-colour)
-   (else (list 255 0 255 255))))
+  (msg "-" text)
+  (msg (symbol? text))
+  (let ((text (symbol->string text)))
+    (cond
+     ((string-in-list-fast text code-functions) code-colour)
+     ((string-in-list-fast text trigger-functions) trigger-colour)
+     ((string-in-list-fast text action-functions) action-colour)
+     ((string-in-list-fast text sensor-functions) sensor-colour)
+     ((string-in-list-fast text maths-functions) maths-colour)
+     ((string-in-list-fast text (get-current 'library-fns '())) library-colour)
+     (else (list 255 0 255 255)))))
 
 (define (code-block-known? text)
-  (or
-   (string-in-list-fast text code-functions)
-   (string-in-list-fast text trigger-functions)
-   (string-in-list-fast text action-functions)
-   (string-in-list-fast text sensor-functions)
-   (string-in-list-fast text maths-functions)))
-
-(define (code-block-atom? text)
-  (string-in-list-fast text (append '("300"))))
+  (msg "+" text)
+  (let ((text (symbol->string text)))
+    (or
+     (string-in-list-fast text code-functions)
+     (string-in-list-fast text trigger-functions)
+     (string-in-list-fast text action-functions)
+     (string-in-list-fast text sensor-functions)
+     (string-in-list-fast text maths-functions)
+     (string-in-list-fast text (get-current 'library-fns '())))))
 
 (define (build-menu fns)
   (append
@@ -629,17 +670,18 @@
      'contents
      (map
       (lambda (fn)
+        (msg fn)
         (button (make-id (string-append fn "-button"))
                 fn 30 (layout 'fill-parent 'wrap-content 1 'left 5)
                 (lambda ()
                   (list
                    (update-widget
                     'draggable (get-id "block-root")
-                    'contents-add (list (code-block fn '())))))))
+                    'contents-add (list (code-block (string->symbol fn) '())))))))
       fns)))
    (map
     (lambda (fn)
       (update-widget 'button (get-id (string-append fn "-button"))
-                     'background-colour (code-block-colour (car fns))))
+                     'background-colour (code-block-colour (string->symbol (car fns)))))
     fns)
    ))

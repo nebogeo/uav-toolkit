@@ -1,6 +1,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; convert scheme values into equivilent json strings
 
+;; two systems here first the original one, mangles symbols into
+;; strings, used for communication with the java code.
+
 (define (scheme->json v)
   (cond
    ((number? v) (number->string v))
@@ -51,7 +54,8 @@
    ""
    (string->list str)))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; second system, goes both ways and maintains symbols properly
 
 ;; test func for env
 (define (check) 42)
@@ -144,13 +148,18 @@
     (consume-char #\l)
     '()))
 
+(define (check-symbol str)
+  (msg "checking" str)
+  (if (eqv? (string-ref str 0) #\:)
+      (string->symbol (substring str 1))
+      str))
+
 (define (parse-string q)
   (let loop ((res ""))
     (let ((ch (read-char)))
       (cond
        ((eqv? ch #\\) (loop (string-append res (string (parse-escape q)))))
-       ((eqv? ch q) res)
-       ((eqv? ch q) res)
+       ((eqv? ch q) (check-symbol res))
        ((not (char-control? ch)) (loop (string-append res (string ch))))
        (else (lexer-error ch))))))
 
@@ -200,6 +209,7 @@ d))))
    ((string? token) token)
    ((number? token) token)
    ((boolean? token) token)
+   ((symbol? token) token)
    (else (parse-error token))))
 
 (define (parse-map)
@@ -237,36 +247,28 @@ d))))
 (define (double-quote s)
   (string-append "\"" s "\""))
 
+(define (symbol-quote s)
+  (string-append "\":" (symbol->string s) "\""))
+
 (define (gen-string obj)
   (if (pair? obj)
-      (let ((tok (car obj)))
-        (case tok
-          ((map) (string-append
-                  "{ "
-                  (reduce
-                   (lambda (o s)
-                     (string-append
-                      (double-quote (symbol->string (car o))) ":"
-                      (json/gen-string (cdr o))
-                      (if ( > (string-length s) 0) ", " "")
-                      s)) ""
-                      (cdr obj))
-                  " }"))
-          ((list) (string-append
-                   "[ "
-                   (reduce
-                    (lambda (o s)
-                      (string-append
-                       (json/gen-string o)
-                       (if ( > (string-length s) 0) ", " "")
-                       s)) ""
-                       (cdr obj))
-                   " ]"))))
+      (string-append
+       "[ "
+       (foldl
+        (lambda (o s)
+          (string-append
+           s
+           (if ( > (string-length s) 0) ", " "")
+           (gen-string o)))
+        ""
+        obj)
+       " ]")
       (cond
        ((boolean? obj) (if obj "true" "false"))
        ((number? obj) (number->string obj))
        ((string? obj) (double-quote obj))
-       ((list? obj) "null"))))
+       ((symbol? obj) (symbol-quote obj))
+       ((list? obj) "[]"))))
 
 (define (with-input-from-string s p)
   (let ((inport (open-input-string s)))

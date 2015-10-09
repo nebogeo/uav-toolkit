@@ -7,6 +7,7 @@
    (list 'actions (list "actions"))
    (list 'triggers (list "triggers"))
    (list 'maths (list "maths"))
+   (list 'library (list "library"))
    (list 'display (list "display"))
    (list 'rubbish-bin (list "rubbish bin"))
    (list 'code (list "code"))
