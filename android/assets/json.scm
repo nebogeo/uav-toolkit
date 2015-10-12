@@ -149,7 +149,6 @@
     '()))
 
 (define (check-symbol str)
-  (msg "checking" str)
   (if (eqv? (string-ref str 0) #\:)
       (string->symbol (substring str 1))
       str))

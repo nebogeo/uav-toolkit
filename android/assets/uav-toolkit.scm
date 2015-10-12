@@ -46,60 +46,121 @@
   (ktv "language" "int" 0)
   (ktv "current-village" "varchar" "none")))
 
-(insert-if-not-exists-name
- db "code" "program" "camera fov 2"
- (list
-  (ktv "name" "varchar" "camera fov 2")
-  (ktv "text" "varchar" (json/gen-string
-                         '((when-moved-metres
-                            (* (tan (to-radians (/ (camera-vert-angle) 2)))
-                               (* 30 0.5))
-                            (save-to-db "camera-fov"
-                                        (orientation)
-                                        (gyroscope)
-                                        (gravity)
-                                        (accelerometer)
-                                        (magnetic-field)
-                                        (gps)
-                                        (take-photo))
-                            (noise)))))))
+(define (default-code name code)
+  (insert-if-not-exists-name
+   db "code" "program" name
+   (list
+    (ktv "name" "varchar" name)
+    (ktv "text" "varchar" (json/gen-string code)))))
 
-(insert-if-not-exists-name
- db "code" "program" "timed camera 2"
- (list
-  (ktv "name" "varchar" "timed camera 2")
-  (ktv "text" "varchar" (json/gen-string
-                         '((when-timer
-                            3
-                            (save-to-db
-                             "camera-timer"
-                             (orientation)
-                             (gyroscope)
-                             (gravity)
-                             (accelerometer)
-                             (magnetic-field)
-                             (gps)
-                             (take-photo))
-                            (noise)))))))
+(define (default-func name code)
+  (insert-if-not-exists-name
+   db "code" "function" name
+   (list
+    (ktv "name" "varchar" name)
+    (ktv "text" "varchar" (json/gen-string code)))))
 
-(insert-if-not-exists-name
- db "code" "program" "new location camera"
- (list
-  (ktv "name" "varchar" "new location camera")
-  (ktv "text" "varchar" (json/gen-string
-                         '((when-in-new-location
-                            (* (tan (to-radians (/ (camera-vert-angle) 2)))
-                               (* 30 0.5))
-                            (save-to-db "camera-new-location"
-                                        (orientation)
-                                        (gyroscope)
-                                        (gravity)
-                                        (accelerometer)
-                                        (magnetic-field)
-                                        (gps)
-                                        (take-photo))
-                            (noise)))))))
+(default-code "camera fov 2"
+  '((when-moved-metres
+     (* (tan (to-radians (/ (camera-vert-angle) 2)))
+        (* 30 0.5))
+     (save-to-db "camera-fov"
+                 (orientation)
+                 (gyroscope)
+                 (gravity)
+                 (accelerometer)
+                 (magnetic-field)
+                 (gps)
+                 (take-photo))
+     (noise))))
 
+(default-code "timed camera 2"
+  '((when-timer
+     3
+     (save-to-db
+      "camera-timer"
+      (orientation)
+      (gyroscope)
+      (gravity)
+      (accelerometer)
+      (magnetic-field)
+      (gps)
+      (take-photo))
+     (noise))))
+
+(default-code "new location camera"
+  '((when-in-new-location
+     (* (tan (to-radians (/ (camera-vert-angle) 2)))
+        (* 30 0.5))
+     (save-to-db "camera-new-location"
+                 (orientation)
+                 (gyroscope)
+                 (gravity)
+                 (accelerometer)
+                 (magnetic-field)
+                 (gps)
+                 (take-photo))
+     (noise))))
+
+(default-func "jerk"
+  '((lambda () (let ((ret (- (list-mag (cadr (accelerometer))) (get-current 'jerk-value 0)))) (set-current! 'jerk-value (list-mag (cadr (accelerometer)))) ret))))
+
+(default-func "jerk-falloff"
+  '((lambda (f) (set-current! 'jerk-f-val (* (+ (jerk) (get-current 'jerk-f-val 0)) f)) (get-current 'jerk-f-val 0))))
+
+(default-func "tilt"
+  '((lambda (arg) (and (between (sensor-value (orientation) 1) (* -1 arg) arg) (between (sensor-value (orientation) 2) (* -1 arg) arg)))))
+
+(default-func "cam-angle-to-distance"
+  '((lambda (coverage)
+      (* (tan (to-radians (/ (camera-vert-angle) 2)))
+         (* 30 coverage)))))
+
+(default-code "new location camera jerktilt"
+  '((when-in-new-location
+     (cam-angle-to-distance 0.5)
+     (when
+      (and
+       (< (jerk-falloff 0.5) 2)
+       (tilt 0.5))
+      (append
+       (save-to-db "camera-new-location2"
+                   (orientation)
+                   (gyroscope)
+                   (gravity)
+                   (accelerometer)
+                   (magnetic-field)
+                   (gps)
+                   (take-photo))
+       (noise))))))
+
+(default-code "timed camera jerktilt"
+  '((when-timer
+     2
+     (when
+      (and
+       (< (jerk-falloff 0.5) 2)
+       (tilt 0.5))
+      (append
+       (save-to-db
+        "camera-timer"
+        (orientation)
+        (gyroscope)
+        (gravity)
+        (accelerometer)
+        (magnetic-field)
+        (gps)
+        (take-photo))
+       (noise))))))
+
+(default-code "jerktilt test"
+  '((when-timer
+     2
+     (when
+      (and
+       (< (jerk-falloff 0.5) 2)
+       (tilt 0.5))
+      (noise)))))
 
 
 (define (get-setting-value name)
@@ -176,6 +237,15 @@
 
 (define (between v l h)
   (and (> v l) (<= v h)))
+
+(define (list-mag l)
+  (msg l)
+  (foldl
+   (lambda (i r)
+     (+ (* i i) r))
+   0 l))
+
+
 
 (define (new-location? dist)
   (cond
@@ -271,7 +341,6 @@
     (list "take-photo" (string-append "files/photo-"
                                       (number->string (car t)) "-" (number->string (cadr t))
                                       ".jpg"))))
-
 
 
 (define (show . data)
@@ -515,7 +584,6 @@
 (define (eval-blocks t)
   (append
    (foldl (lambda (sexp r)
-            (msg sexp)
             (append (eval sexp) r))
           '()
           t)
@@ -584,7 +652,8 @@
 (define code-colour (list 100 200 255 255))
 (define code-functions
   (list "text" "number" "symbol" "empty"
-        "when" "and" "or" "not" "lambda"))
+        "when" "and" "or" "not" "lambda" "map" "foldl"
+        "set-current!" "get-current"))
 
 (define trigger-colour (list 255 200 100 255))
 (define trigger-functions
@@ -636,11 +705,9 @@
 (define maths-functions
   (list "+" "-" "/" "*" "<" ">" ">=" "<="
         "sin" "cos" "tan" "asin" "acos" "atan" "modulo" "pow"
-        "to-radians" "between" "sensor-value"))
+        "to-radians" "between" "sensor-value" "list-mag"))
 
 (define (code-block-colour text)
-  (msg "-" text)
-  (msg (symbol? text))
   (let ((text (symbol->string text)))
     (cond
      ((string-in-list-fast text code-functions) code-colour)
@@ -652,7 +719,6 @@
      (else (list 255 0 255 255)))))
 
 (define (code-block-known? text)
-  (msg "+" text)
   (let ((text (symbol->string text)))
     (or
      (string-in-list-fast text code-functions)
@@ -670,7 +736,6 @@
      'contents
      (map
       (lambda (fn)
-        (msg fn)
         (button (make-id (string-append fn "-button"))
                 fn 30 (layout 'fill-parent 'wrap-content 1 'left 5)
                 (lambda ()
