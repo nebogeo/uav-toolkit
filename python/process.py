@@ -1,7 +1,7 @@
 import os
 
-path = "../data4/reduced/"
-dest = "../data4/reduce/"
+path = "../farm-test/reduced/"
+dest = "../farm-test/reduce/"
 
 i = 0
 for (path, dirs, files) in os.walk(path):

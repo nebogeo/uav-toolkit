@@ -37,7 +37,7 @@ public class LockActivity extends foam.starwisp.StarwispActivity
         params.flags |= LayoutParams.FLAG_KEEP_SCREEN_ON;
         params.flags |= LayoutParams.FLAG_SHOW_WHEN_LOCKED;
         params.flags |= LayoutParams.FLAG_DISMISS_KEYGUARD;
-        params.screenBrightness = 0;
+        //params.screenBrightness = 0;
         getWindow().setAttributes(params);
 
         getWindow().getDecorView().setSystemUiVisibility(

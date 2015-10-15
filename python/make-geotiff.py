@@ -10,7 +10,7 @@ from decimal import *
 def convert_images(entities):
     for e in entities:
         filename = eavdb.ktv_get(e,"photo")
-        cmd = "convert -resize 20% ../data6/"+filename+" ../data6/reduce/"+filename
+        cmd = "convert -resize 20% ../farm-test/"+filename+" ../farm-test/reduce/"+filename
         print cmd
         os.system(cmd)
 
@@ -32,11 +32,14 @@ def process(entities):
             ih = 624
             ratio = iw/float(ih)
 
+            dist = 20
+            #dist = 15
+
             # move to top left corner
-            offset_to_tl = uav_maths.vec3(-30*ratio,-30,0)
-            offset_to_br = uav_maths.vec3(30*ratio,30,0)
-            offset_to_tr = uav_maths.vec3(30*ratio,-30,0)
-            offset_to_bl = uav_maths.vec3(-30*ratio,30,0)
+            offset_to_tl = uav_maths.vec3(-dist*ratio,-dist,0)
+            offset_to_br = uav_maths.vec3(dist*ratio,dist,0)
+            offset_to_tr = uav_maths.vec3(dist*ratio,-dist,0)
+            offset_to_bl = uav_maths.vec3(-dist*ratio,dist,0)
             rotmat = uav_maths.mat44()
             #rotmat.aim(magnet,uav_maths.vec3(0,0,1))
             rotmat.rotxyz(0,0,a+180);
@@ -70,29 +73,32 @@ def process(entities):
                   "-gcp 0 "+str(ih)+" "+str(bl_gps.lat)+" "+str(bl_gps.lon)+" "+\
                   "-gcp "+str(iw)+" 0 "+str(tr_gps.lat)+" "+str(tr_gps.lon)+" "+\
                   "-gcp "+str(iw)+" "+str(ih)+" "+str(br_gps.lat)+" "+str(br_gps.lon)+" "+\
-                  "../data6/reduce/"+filename+' ../data6/out/'+filename+'.tif'
+                  "../farm-test/reduce/"+filename+' ../farm-test/out/'+filename+'.tif'
 
             print cmd
             os.system(cmd)
 
-            cmd = 'gdalwarp -r bilinear -dstalpha ../data6/out/'+filename+'.tif ../data6/out/'+filename+'oo2.tif'
+            cmd = 'gdalwarp -r bilinear -dstalpha ../farm-test/out/'+filename+'.tif ../farm-test/out/'+filename+'oo2.tif'
             os.system(cmd)
             #cmd = 'gdalwarp -t_srs EPSG:3857 ../data6/out/'+filename+'oo2.tif ../data6/out/'+filename+'oo3.tif'
             #os.system(cmd)
-            cmd = 'rm ../data6/out/'+filename+'.tif ' #'../data6/out/'+filename+'oo2.tif'
+            cmd = 'rm ../farm-test/out/'+filename+'.tif ' #'../data6/out/'+filename+'oo2.tif'
             os.system(cmd)
 
 
 
-db = eavdb.open('../data6/uav-toolkit.db')
+db = eavdb.open('../farm-test/uav-toolkit.db')
 print eavdb.get_all_entity_types(db,'stream')
 
 #entities = eavdb.filter_entities(db,"stream",
 #                                 [eavdb.eavdb_filter("time","varchar",">","2015-04-07 03:19:00")])
 entities = eavdb.filter_entities(db,"stream",
-                                 [eavdb.eavdb_filter("name","varchar","=","camera-new-location")])
+                                 [eavdb.eavdb_filter("name","varchar","=","farm2")])
 
+#print len(entities)
 
-#print entities
+for e in entities:
+    print eavdb.ktv_get(e,"photo")
+
 #convert_images(entities)
 process(entities)

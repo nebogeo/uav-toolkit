@@ -60,7 +60,7 @@
     (ktv "name" "varchar" name)
     (ktv "text" "varchar" (json/gen-string code)))))
 
-(default-code "camera fov 2"
+(default-code "camera fov 3"
   '((when-moved-metres
      (* (tan (to-radians (/ (camera-vert-angle) 2)))
         (* 30 0.5))
@@ -74,7 +74,7 @@
                  (take-photo))
      (noise))))
 
-(default-code "timed camera 2"
+(default-code "timed camera 3"
   '((when-timer
      3
      (save-to-db
@@ -88,7 +88,7 @@
       (take-photo))
      (noise))))
 
-(default-code "new location camera"
+(default-code "new location camera 2"
   '((when-in-new-location
      (* (tan (to-radians (/ (camera-vert-angle) 2)))
         (* 30 0.5))
@@ -576,6 +576,17 @@
                (interaction-environment))
          )))
    (all-entities db "code" "function")))
+
+(define (find-program-code name)
+  (db-filter db "code" "program" (list (list "name" "varchar" "like" name))))
+
+(define (eval-program text)
+  (let ((sexpr (json/parse-string text)))
+    ;; eval in global environment
+   (foldl (lambda (sexp r)
+            (append (eval sexp) r))
+          '()
+          sexpr)))
 
 (define (find-library-code name)
   (db-filter db "code" "function" (list (list "name" "varchar" "like" name))))

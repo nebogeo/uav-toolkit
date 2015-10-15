@@ -80,6 +80,57 @@
        (layout 'fill-parent 'wrap-content 0.75 'centre 0)
        (list 0 0 0 0)
        (list
+
+        (build-list-widget db "code" 'programs (list "name") "program" "vptest"
+                           (lambda () #f)
+                           (lambda ()
+                             (list
+                              (ktv "name" "varchar" "a program")
+                              (ktv "text" "varchar" (json/gen-string '((when-timer 3 (show "hello world")))))))
+                           )
+
+
+        (button
+         (make-id "edit-but")
+         "Edit code"
+         30 (layout 'fill-parent 'wrap-content -1 'centre 5)
+         (lambda ()
+           (list (start-activity "editor" 0 ""))))
+     )))))
+   (lambda (activity arg)
+     (activity-layout activity))
+   (lambda (activity arg)
+     ;; run library code here...
+     (list
+      ;; start gps here, and run it all the time...
+      (gps-start "gps" (lambda (loc)
+                         (set-current! 'location loc)
+                         (list))
+                 500 5)
+      (update-list-widget db "code" (list "name") "program" "lock" #f)
+
+      ))
+   (lambda (activity) '())
+   (lambda (activity) '())
+   (lambda (activity) '())
+   (lambda (activity) '())
+   (lambda (activity requestcode resultcode) '()))
+
+
+  (activity
+   "editor"
+   (vert
+    (image-view 0 "logo" (layout 'wrap-content 'wrap-content -1 'centre 0))
+    (text-view (make-id "version") (string-append "beta/experimental " (number->string app-version)) 20 fillwrap)
+
+    (scroll-view-vert
+     0 (layout 'fill-parent 'wrap-content 0.75 'centre 0)
+     (list
+      (linear-layout
+       (make-id "button-list") 'vertical
+       (layout 'fill-parent 'wrap-content 0.75 'centre 0)
+       (list 0 0 0 0)
+       (list
      (button
       (make-id "about-button")
       "About"
@@ -145,6 +196,7 @@
    (lambda (activity) '())
    (lambda (activity) '())
    (lambda (activity requestcode resultcode) '()))
+
 
 
   (activity
@@ -407,21 +459,21 @@
            (json/gen-string (list 0 ""))))
 
         (horiz
-         (button (make-id "lock-button")
-                 "flight lock" 30 (layout 'fill-parent 'wrap-content 1 'centre 5)
-                 (lambda ()
-                   (list
-                    (alert-dialog
-                     "vptest-lock"
-                     "Enter flight mode: phone needs hard reset to stop the program - are you sure?"
-                     (lambda (v)
-                       (cond
-                        ((eqv? v 1)
-                         (list
-                          (update-widget 'camera-preview (get-id "camerap") 'shutdown 0)
-                          (start-activity "lock" 0 "")))
-                        (else
-                         (list))))))))
+         ;; (button (make-id "lock-button")
+         ;;         "flight lock" 30 (layout 'fill-parent 'wrap-content 1 'centre 5)
+         ;;         (lambda ()
+         ;;           (list
+         ;;            (alert-dialog
+         ;;             "vptest-lock"
+         ;;             "Enter flight mode: phone needs hard reset to stop the program - are you sure?"
+         ;;             (lambda (v)
+         ;;               (cond
+         ;;                ((eqv? v 1)
+         ;;                 (list
+         ;;                  (update-widget 'camera-preview (get-id "camerap") 'shutdown 0)
+         ;;                  (start-activity "lock" 0 "")))
+         ;;                (else
+         ;;                 (list))))))))
 
          (delete-button)
 
@@ -476,38 +528,78 @@
   (activity
    "lock"
    (vert
-    (button (make-id "exit-button")
-            "Exit" 20 (layout 'fill-parent 'wrap-content 1 'left 5)
-            (lambda ()
-              (append
-               (clear-triggers)
-               (list
-                ;; shut it all down
-                (update-widget 'camera-preview (get-id "lock-camerap") 'shutdown 0)
-                (finish-activity 1)))))
+    (horiz
 
-    (draggable
-     (make-id "block-root")
-     'vertical (layout 10 10 1 'left 0) (list 255 255 0 20)
-     "drop-only"
-     (list)
-     (lambda ()
-       (json/gen-string (list 0 ""))))
+     (button (make-id "exit-button1")
+             "1" 50 (layout 'fill-parent 'wrap-content 1 'left 5)
+             (lambda ()
+               (set-current! 'lock-unlock 0)
+               (msg (get-current 'lock-unlock 0))
+               '()))
+
+     (button (make-id "exit-button2")
+             "2" 50 (layout 'fill-parent 'wrap-content 1 'left 5)
+             (lambda ()
+               (if (eqv? (get-current 'lock-unlock 0) 0)
+                   (set-current! 'lock-unlock 1)
+                   (set-current! 'lock-unlock 0))
+               (msg (get-current 'lock-unlock 0))
+               '())))
+    (horiz
+     (button (make-id "exit-button3")
+             "3" 50 (layout 'fill-parent 'wrap-content 1 'left 5)
+             (lambda ()
+               (if (eqv? (get-current 'lock-unlock 0) 1)
+                   (set-current! 'lock-unlock 2)
+                   (set-current! 'lock-unlock 0))
+               (msg (get-current 'lock-unlock 0))
+               '()))
+
+     (button (make-id "exit-button4")
+             "4" 50 (layout 'fill-parent 'wrap-content 1 'left 5)
+             (lambda ()
+               (msg (get-current 'lock-unlock 0))
+               (cond
+                ((eqv? (get-current 'lock-unlock 0) 2)
+                 (set-current! 'lock-unlock 0)
+                 (append
+                  (clear-triggers)
+                  (list
+                   ;; shut it all down
+                   (update-widget 'camera-preview (get-id "lock-camerap") 'shutdown 0)
+                   (finish-activity 1))))
+                (else
+                 (set-current! 'lock-unlock 0)
+                 '())))))
 
     (camera-preview (make-id "lock-camerap") (layout 'fill-parent 320 1 'left 0))
     )
    (lambda (activity arg)
      (activity-layout activity))
    (lambda (activity arg)
+     (entity-init! db "code" "program" (get-entity-by-unique db "code" arg))
      (set-current! 'camera-preview-id (get-id "lock-camerap"))
-     (list
-      (update-widget
-       'draggable (get-id "block-root")
-       'contents (load-code))
-      (walk-draggable
-       "lock-eval-walk" (get-id "block-root")
-       (lambda (t)
-         (eval-blocks t)))))
+
+     ;; run the program
+     (clear-triggers) ;; just in case
+     (eval-library)
+     (msg (entity-get-value "text"))
+
+     (append
+      (eval-program (entity-get-value "text"))
+      (list
+       (sensors-start
+        "start-sensors"
+        (get-current 'sensors '())
+        (lambda (data)
+          (set-current! 'sensor-values
+                        (addv
+                         (get-current 'sensor-values '())
+                         (list (list-ref data 1)
+                               (cdr (cdr (cdr (cdr data)))))))
+          '()))
+       )))
+
    (lambda (activity)
      (list (update-widget 'camera-preview (get-id "lock-camerap") 'shutdown 0)))
    (lambda (activity) '())
