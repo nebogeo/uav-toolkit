@@ -853,6 +853,17 @@
       (list 0 0 0 0)
       (list))))
 
+(define (build-list-widget-readonly db table title title-ids entity-type edit-activity parent-fn ktv-default-fn)
+  (vert-colour
+   colour-two
+   (mtitle-scale title)
+   (linear-layout
+    (make-id (string-append entity-type "-list"))
+    'vertical
+    (layout 'fill-parent 'wrap-content 1 'centre 20)
+    (list 0 0 0 0)
+    (list))))
+
 (define (make-list-widget-title e title-ids)
   (if (eqv? (length title-ids) 1)
       (ktv-get e (car title-ids))

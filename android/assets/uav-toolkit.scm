@@ -32,19 +32,32 @@
 (setup db "code")
 (setup db "stream")
 
-(define settings-entity-id-version 2)
+(define settings-entity-id-version 4)
 
 (define (insert-if-not-exists-name db table type name ktv-list)
   (when
    (null? (filter-entities-inc-deleted db table type (list (list "name" "varchar" "=" name))))
    (insert-entity db table type "sys" ktv-list)))
 
-(insert-entity-if-not-exists
- db "local" "app-settings" "null" settings-entity-id-version
- (list
-  (ktv "user-id" "varchar" "not set")
-  (ktv "language" "int" 0)
-  (ktv "current-village" "varchar" "none")))
+ (insert-entity-if-not-exists
+  db "local" "app-settings" "null" settings-entity-id-version
+  (list
+   (ktv "language" "int" 0)
+   (ktv "alt" "real" "50.0")
+   (ktv "coverage" "real" "60.0")
+   (ktv "timer" "real" "3.0")))
+
+(define (get-setting-value name)
+  (ktv-get (get-entity db "local" settings-entity-id-version) name))
+
+ (define (set-setting! key type value)
+   (update-entity
+    db "local" settings-entity-id-version (list (ktv key type value))))
+
+;; need access via normal scheme code
+(define global-altitude (get-setting-value "altitude"))
+(define global-coverage (get-setting-value "coverage"))
+(define global-timer (get-setting-value "timer"))
 
 (define (default-code name code)
   (insert-if-not-exists-name
@@ -60,47 +73,7 @@
     (ktv "name" "varchar" name)
     (ktv "text" "varchar" (json/gen-string code)))))
 
-(default-code "camera fov 3"
-  '((when-moved-metres
-     (* (tan (to-radians (/ (camera-vert-angle) 2)))
-        (* 30 0.5))
-     (save-to-db "camera-fov"
-                 (orientation)
-                 (gyroscope)
-                 (gravity)
-                 (accelerometer)
-                 (magnetic-field)
-                 (gps)
-                 (take-photo))
-     (noise))))
-
-(default-code "timed camera 3"
-  '((when-timer
-     3
-     (save-to-db
-      "camera-timer"
-      (orientation)
-      (gyroscope)
-      (gravity)
-      (accelerometer)
-      (magnetic-field)
-      (gps)
-      (take-photo))
-     (noise))))
-
-(default-code "new location camera 2"
-  '((when-in-new-location
-     (* (tan (to-radians (/ (camera-vert-angle) 2)))
-        (* 30 0.5))
-     (save-to-db "camera-new-location"
-                 (orientation)
-                 (gyroscope)
-                 (gravity)
-                 (accelerometer)
-                 (magnetic-field)
-                 (gps)
-                 (take-photo))
-     (noise))))
+;;; default code stuff
 
 (default-func "jerk"
   '((lambda () (let ((ret (- (list-mag (cadr (accelerometer))) (get-current 'jerk-value 0)))) (set-current! 'jerk-value (list-mag (cadr (accelerometer)))) ret))))
@@ -112,38 +85,57 @@
   '((lambda (arg) (and (between (sensor-value (orientation) 1) (* -1 arg) arg) (between (sensor-value (orientation) 2) (* -1 arg) arg)))))
 
 (default-func "cam-angle-to-distance"
-  '((lambda (coverage)
+  '((lambda (altitude coverage)
       (* (tan (to-radians (/ (camera-vert-angle) 2)))
-         (* 30 coverage)))))
+         (* altitude (/ coverage 100))))))
 
-(default-code "new location camera jerktilt"
-  '((when-in-new-location
-     (cam-angle-to-distance 0.5)
+(default-func "jerktilt test"
+  '((when-timer
+     0.5
      (when
       (and
        (< (jerk-falloff 0.5) 2)
        (tilt 0.5))
-      (append
-       (save-to-db "camera-new-location2"
-                   (orientation)
-                   (gyroscope)
-                   (gravity)
-                   (accelerometer)
-                   (magnetic-field)
-                   (gps)
-                   (take-photo))
-       (noise))))))
+      (noise)))))
 
-(default-code "timed camera jerktilt"
+(default-code "Timed Drone"
   '((when-timer
-     2
+     global-timer
+     (save-to-db
+      "timed-drone"
+      (orientation)
+      (gyroscope)
+      (gravity)
+      (accelerometer)
+      (magnetic-field)
+      (gps)
+      (take-photo))
+     (noise))))
+
+(default-code "Clever Drone"
+  '((when-in-new-location
+     (cam-angle-to-distance
+      global-altitude global-coverage)
+     (save-to-db "clever-drone"
+                 (orientation)
+                 (gyroscope)
+                 (gravity)
+                 (accelerometer)
+                 (magnetic-field)
+                 (gps)
+                 (take-photo))
+     (noise))))
+
+(default-code "Timed Kite"
+  '((when-timer
+     global-timer
      (when
       (and
        (< (jerk-falloff 0.5) 2)
        (tilt 0.5))
       (append
        (save-to-db
-        "camera-timer"
+        "timed-kite"
         (orientation)
         (gyroscope)
         (gravity)
@@ -153,14 +145,25 @@
         (take-photo))
        (noise))))))
 
-(default-code "jerktilt test"
-  '((when-timer
-     2
+(default-code "Clever Kite"
+  '((when-in-new-location
+     (cam-angle-to-distance global-altitude global-coverage)
      (when
       (and
        (< (jerk-falloff 0.5) 2)
        (tilt 0.5))
-      (noise)))))
+      (append
+       (save-to-db "clever-kite"
+                   (orientation)
+                   (gyroscope)
+                   (gravity)
+                   (accelerometer)
+                   (magnetic-field)
+                   (gps)
+                   (take-photo))
+       (noise))))))
+
+;;; end default code stuff
 
 
 (define (get-setting-value name)
@@ -435,10 +438,10 @@
         (symbol-code-block code '())
         (code-block code '())))
    ((list? code)
-    (if (symbol? (car code));; ignore first 'list'
+    (if (symbol? (car code));; convert into function call
         (code-block (car code)
                     (map inner-code-blockify (cdr code)))
-        (code-block 'list (map inner-code-blockify code))))
+        (code-block-list (map inner-code-blockify code))))
    (else (code-block 'error '()))))
 
 (define (text->code-block text)
@@ -664,11 +667,12 @@
 (define code-functions
   (list "text" "number" "symbol" "empty"
         "when" "and" "or" "not" "lambda" "map" "foldl"
-        "set-current!" "get-current"))
+        "set-current!" "get-current" ))
 
 (define trigger-colour (list 255 200 100 255))
 (define trigger-functions
-  (list "when-timer" "when-moved-metres" "when-in-new-location"))
+  (list "when-timer" "when-moved-metres" "when-in-new-location"
+        "global-altitude" "global-coverage" "global-timer"))
 
 (define action-colour (list 200 255 100 255))
 (define action-functions

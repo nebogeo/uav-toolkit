@@ -93,12 +93,12 @@ print eavdb.get_all_entity_types(db,'stream')
 #entities = eavdb.filter_entities(db,"stream",
 #                                 [eavdb.eavdb_filter("time","varchar",">","2015-04-07 03:19:00")])
 entities = eavdb.filter_entities(db,"stream",
-                                 [eavdb.eavdb_filter("name","varchar","=","farm2")])
+                                 [eavdb.eavdb_filter("name","varchar","=","farmtest")])
 
-#print len(entities)
+print len(entities)
 
-for e in entities:
-    print eavdb.ktv_get(e,"photo")
+#for e in entities:
+#    print eavdb.ktv_get(e,"photo")
 
 #convert_images(entities)
-process(entities)
+#process(entities)

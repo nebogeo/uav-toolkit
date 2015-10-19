@@ -81,7 +81,7 @@
        (list 0 0 0 0)
        (list
 
-        (build-list-widget db "code" 'programs (list "name") "program" "vptest"
+        (build-list-widget-readonly db "code" 'modes (list "name") "program" "vptest"
                            (lambda () #f)
                            (lambda ()
                              (list
@@ -90,10 +90,25 @@
                            )
 
 
+        (mtitle 'global-settings)
+
+        (medit-text 'global-alt "numeric"
+                    (lambda (v)
+                      (set-setting! "alt" (string->number v))
+                      '()))
+        (medit-text 'global-cov "numeric"
+                    (lambda (v)
+                      (set-setting! "coverage" (string->number v))
+                      '()))
+        (medit-text 'global-timer "numeric"
+                    (lambda (v)
+                      (set-setting! "timer" (string->number v))
+                      '()))
+
         (button
          (make-id "edit-but")
          "Edit code"
-         30 (layout 'fill-parent 'wrap-content -1 'centre 5)
+         20 (layout 'wrap-content 'wrap-content -1 'right 5)
          (lambda ()
            (list (start-activity "editor" 0 ""))))
      )))))
@@ -102,6 +117,13 @@
    (lambda (activity arg)
      ;; run library code here...
      (list
+      (update-widget 'edit-text (get-id "global-alt") 'text
+                     (number->string (get-setting-value "alt")))
+      (update-widget 'edit-text (get-id "global-cov") 'text
+                     (number->string (get-setting-value "coverage")))
+      (update-widget 'edit-text (get-id "global-timer") 'text
+                     (number->string (get-setting-value "timer")))
+
       ;; start gps here, and run it all the time...
       (gps-start "gps" (lambda (loc)
                          (set-current! 'location loc)
@@ -180,8 +202,6 @@
    (lambda (activity arg)
      (activity-layout activity))
    (lambda (activity arg)
-     ;; run library code here...
-     (eval-library)
      (list
       ;; start gps here, and run it all the time...
       (gps-start "gps" (lambda (loc)
@@ -219,14 +239,6 @@
                               (ktv "name" "varchar" "a program")
                               (ktv "text" "varchar" (json/gen-string '((when-timer 3 (show "hello world")))))))
                            )))))
-
-     (button
-      (make-id "eval-library-button")
-      "Evaluate all library code"
-      30 (layout 'fill-parent 'wrap-content -1 'centre 5)
-      (lambda ()
-        (eval-library)
-        '()))
 
     )
    (lambda (activity arg)
@@ -582,6 +594,11 @@
 
      ;; run the program
      (clear-triggers) ;; just in case
+
+     (set! global-altitude (get-setting-value "altitude"))
+     (set! global-coverage (get-setting-value "coverage"))
+     (set! global-timer (get-setting-value "timer"))
+
      (eval-library)
      (msg (entity-get-value "text"))
 
