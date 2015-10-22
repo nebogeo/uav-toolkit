@@ -145,5 +145,9 @@ public class starwisp extends StarwispActivity
         m_Scheme.eval(m_Scheme.readRawTextFile(this, "starwisp.scm"));
 
         super.onCreate(savedInstanceState);
+
+        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
+                             WindowManager.LayoutParams.FLAG_FULLSCREEN);
+
     }
 }

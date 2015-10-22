@@ -81,33 +81,44 @@
        (list 0 0 0 0)
        (list
 
-        (build-list-widget-readonly db "code" 'modes (list "name") "program" "vptest"
-                           (lambda () #f)
-                           (lambda ()
-                             (list
-                              (ktv "name" "varchar" "a program")
-                              (ktv "text" "varchar" (json/gen-string '((when-timer 3 (show "hello world")))))))
-                           )
-
+        (button
+         (make-id "about-button")
+         "About"
+         30 (layout 'fill-parent 'wrap-content -1 'centre 5)
+         (lambda ()
+           (list (start-activity "about" 0 ""))))
 
         (mtitle 'global-settings)
 
         (medit-text 'global-alt "numeric"
                     (lambda (v)
-                      (set-setting! "alt" (string->number v))
+                      (set-setting! "alt" "real" (string->number v))
                       '()))
         (medit-text 'global-cov "numeric"
                     (lambda (v)
-                      (set-setting! "coverage" (string->number v))
+                      (set-setting! "coverage" "real" (string->number v))
                       '()))
         (medit-text 'global-timer "numeric"
                     (lambda (v)
-                      (set-setting! "timer" (string->number v))
+                      (set-setting! "timer" "real" (string->number v))
                       '()))
+
+
+        (build-list-widget-readonly
+         db "code" 'modes (list "name") "program" "vptest"
+         (lambda () #f)
+         (lambda ()
+           (list
+            (ktv "name" "varchar" "a program")
+            (ktv "text" "varchar"
+                 (json/gen-string '((when-timer 3 (show "hello world")))))))
+         )
+
+
 
         (button
          (make-id "edit-but")
-         "Edit code"
+         "Modify code"
          20 (layout 'wrap-content 'wrap-content -1 'right 5)
          (lambda ()
            (list (start-activity "editor" 0 ""))))
@@ -142,8 +153,6 @@
   (activity
    "editor"
    (vert
-    (image-view 0 "logo" (layout 'wrap-content 'wrap-content -1 'centre 0))
-    (text-view (make-id "version") (string-append "beta/experimental " (number->string app-version)) 20 fillwrap)
 
     (scroll-view-vert
      0 (layout 'fill-parent 'wrap-content 0.75 'centre 0)
@@ -153,12 +162,6 @@
        (layout 'fill-parent 'wrap-content 0.75 'centre 0)
        (list 0 0 0 0)
        (list
-     (button
-      (make-id "about-button")
-      "About"
-      30 (layout 'fill-parent 'wrap-content -1 'centre 5)
-      (lambda ()
-        (list (start-activity "about" 0 ""))))
 
      (build-list-widget db "code" 'programs (list "name") "program" "vptest"
                         (lambda () #f)
@@ -171,7 +174,7 @@
 
      (button
       (make-id "library-but")
-      "Library"
+      "Code library"
       30 (layout 'fill-parent 'wrap-content -1 'centre 5)
       (lambda ()
         (list (start-activity "library" 0 ""))))
@@ -543,23 +546,34 @@
     (horiz
 
      (button (make-id "exit-button1")
-             "1" 50 (layout 'fill-parent 'wrap-content 1 'left 5)
+             "1" 100 (layout 'wrap-content 'wrap-content -1 'left 5)
              (lambda ()
                (set-current! 'lock-unlock 0)
                (msg (get-current 'lock-unlock 0))
                '()))
 
+     (space (layout 'fill-parent 'fill-parent 1 'left 5))
+
      (button (make-id "exit-button2")
-             "2" 50 (layout 'fill-parent 'wrap-content 1 'left 5)
+             "2" 100 (layout 'wrap-content 'wrap-content -1 'right 5)
              (lambda ()
                (if (eqv? (get-current 'lock-unlock 0) 0)
                    (set-current! 'lock-unlock 1)
                    (set-current! 'lock-unlock 0))
                (msg (get-current 'lock-unlock 0))
                '())))
+
+    (mtitle 'lock-title)
+    (text-view (make-id "lock-program") "" 30 (layout 'fill-parent 'wrap-content -1 'centre 5) 'centre)
+    (mtext 'lock-explanation)
+
+    (camera-preview (make-id "lock-camerap") (layout 'fill-parent 320 1 'left 0))
+
+    (space (layout 'fill-parent 'fill-parent 1 'left 5))
+
     (horiz
      (button (make-id "exit-button3")
-             "3" 50 (layout 'fill-parent 'wrap-content 1 'left 5)
+             "3" 100 (layout 'wrap-content 'wrap-content -1 'left 5)
              (lambda ()
                (if (eqv? (get-current 'lock-unlock 0) 1)
                    (set-current! 'lock-unlock 2)
@@ -567,8 +581,10 @@
                (msg (get-current 'lock-unlock 0))
                '()))
 
+     (space (layout 'fill-parent 'fill-parent 1 'left 5))
+
      (button (make-id "exit-button4")
-             "4" 50 (layout 'fill-parent 'wrap-content 1 'left 5)
+             "4" 100 (layout 'wrap-content 'wrap-content -1 'right 5)
              (lambda ()
                (msg (get-current 'lock-unlock 0))
                (cond
@@ -584,7 +600,7 @@
                  (set-current! 'lock-unlock 0)
                  '())))))
 
-    (camera-preview (make-id "lock-camerap") (layout 'fill-parent 320 1 'left 0))
+
     )
    (lambda (activity arg)
      (activity-layout activity))
@@ -595,16 +611,17 @@
      ;; run the program
      (clear-triggers) ;; just in case
 
-     (set! global-altitude (get-setting-value "altitude"))
+     (set! global-altitude (get-setting-value "alt"))
      (set! global-coverage (get-setting-value "coverage"))
      (set! global-timer (get-setting-value "timer"))
 
      (eval-library)
-     (msg (entity-get-value "text"))
 
      (append
       (eval-program (entity-get-value "text"))
       (list
+       (update-widget 'text-view (get-id "lock-program") 'text
+                      (string-append "Running: " (entity-get-value "name")))
        (sensors-start
         "start-sensors"
         (get-current 'sensors '())
@@ -726,6 +743,7 @@
       (text-view 0 "Credits" 30 (layout 'fill-parent 'wrap-content -1 'centre 5) 'centre)
 
       (text-view 0 "Karen Anderson: team leader and chief kite wranger" 20 (layout 'fill-parent 'wrap-content -1 'centre 0))
+      (text-view 0 "Katrina Threadgill: research use case expert" 20 (layout 'fill-parent 'wrap-content -1 'centre 0))
       (text-view 0 "Steve Hancock: extreme flight testing and duct tape" 20 (layout 'fill-parent 'wrap-content -1 'centre 0))
       (text-view 0 "James Duffy: drone test pilot and precise landings" 20 (layout 'fill-parent 'wrap-content -1 'centre 0))
       (text-view 0 "Leon DeBell:  3d printing and drone mechanics" 20 (layout 'fill-parent 'wrap-content -1 'centre 0))

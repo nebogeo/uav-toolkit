@@ -842,9 +842,10 @@
        (lambda ()
          (entity-create!
           db table entity-type
-          (ktvlist-merge
-           (ktv-default-fn)
-           (list (ktv "parent" "varchar" (parent-fn)))))
+          (dbg (ktvlist-merge
+              (ktv-default-fn)
+              (list (ktv "parent" "varchar" (parent-fn))))))
+         (msg "entity created")
          (list (update-list-widget db table title-ids entity-type edit-activity (parent-fn))))))
      (linear-layout
       (make-id (string-append entity-type "-list"))

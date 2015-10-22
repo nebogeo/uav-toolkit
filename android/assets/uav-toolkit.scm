@@ -32,7 +32,7 @@
 (setup db "code")
 (setup db "stream")
 
-(define settings-entity-id-version 4)
+(define settings-entity-id-version 5)
 
 (define (insert-if-not-exists-name db table type name ktv-list)
   (when
@@ -42,6 +42,7 @@
  (insert-entity-if-not-exists
   db "local" "app-settings" "null" settings-entity-id-version
   (list
+   (ktv "user-id" "varchar" "user")
    (ktv "language" "int" 0)
    (ktv "alt" "real" "50.0")
    (ktv "coverage" "real" "60.0")
@@ -55,7 +56,7 @@
     db "local" settings-entity-id-version (list (ktv key type value))))
 
 ;; need access via normal scheme code
-(define global-altitude (get-setting-value "altitude"))
+(define global-altitude (get-setting-value "alt"))
 (define global-coverage (get-setting-value "coverage"))
 (define global-timer (get-setting-value "timer"))
 
@@ -76,13 +77,24 @@
 ;;; default code stuff
 
 (default-func "jerk"
-  '((lambda () (let ((ret (- (list-mag (cadr (accelerometer))) (get-current 'jerk-value 0)))) (set-current! 'jerk-value (list-mag (cadr (accelerometer)))) ret))))
+  '((lambda ()
+      (let ((ret (- (list-mag (cadr (accelerometer)))
+                    (get-current 'jerk-value 0))))
+        (set-current!
+         'jerk-value
+         (list-mag (cadr (accelerometer)))) ret))))
 
 (default-func "jerk-falloff"
-  '((lambda (f) (set-current! 'jerk-f-val (* (+ (jerk) (get-current 'jerk-f-val 0)) f)) (get-current 'jerk-f-val 0))))
+  '((lambda (f)
+      (set-current!
+       'jerk-f-val
+       (* (+ (jerk) (get-current 'jerk-f-val 0)) f))
+      (get-current 'jerk-f-val 0))))
 
 (default-func "tilt"
-  '((lambda (arg) (and (between (sensor-value (orientation) 1) (* -1 arg) arg) (between (sensor-value (orientation) 2) (* -1 arg) arg)))))
+  '((lambda (arg)
+      (and (between (sensor-value (orientation) 1) (* -1 arg) arg)
+           (between (sensor-value (orientation) 2) (* -1 arg) arg)))))
 
 (default-func "cam-angle-to-distance"
   '((lambda (altitude coverage)
@@ -146,22 +158,20 @@
        (noise))))))
 
 (default-code "Clever Kite"
-  '((when-in-new-location
+  '((when-in-new-location-cond
      (cam-angle-to-distance global-altitude global-coverage)
-     (when
-      (and
-       (< (jerk-falloff 0.5) 2)
-       (tilt 0.5))
-      (append
-       (save-to-db "clever-kite"
-                   (orientation)
-                   (gyroscope)
-                   (gravity)
-                   (accelerometer)
-                   (magnetic-field)
-                   (gps)
-                   (take-photo))
-       (noise))))))
+     (and
+      (< (jerk-falloff 0.5) 2)
+      (tilt 0.5))
+     (save-to-db "clever-kite"
+                 (orientation)
+                 (gyroscope)
+                 (gravity)
+                 (accelerometer)
+                 (magnetic-field)
+                 (gps)
+                 (take-photo))
+     (noise))))
 
 ;;; end default code stuff
 
@@ -242,13 +252,10 @@
   (and (> v l) (<= v h)))
 
 (define (list-mag l)
-  (msg l)
   (foldl
    (lambda (i r)
      (+ (* i i) r))
    0 l))
-
-
 
 (define (new-location? dist)
   (cond
@@ -287,6 +294,29 @@
      (set-current! 'location-list '())
      (list
       (delayed "when-new-location" 2000 when-new-location-cb))))
+
+(define-macro (when-in-new-location-cond . args)
+  `(begin
+     (define (when-new-location-cond-cb)
+       (append
+        (list
+         (toast
+          (string-append
+           (number->string (car (get-current 'location '(0 0)))) ","
+           (number->string (cadr (get-current 'location '(0 0)))) ": "
+           (number->string (length (get-current 'location-list '()))))))
+        (cond
+         ((and ,(cadr args)
+               (new-location? ,(car args)))
+          (set-current! 'last-moved-location (get-current 'location '(0 0)))
+          (append ,@(cddr args)))
+         (else
+          '()))
+        (list (delayed "when-new-location-cond" 2000 when-new-location-cond-cb))))
+     ;; clear locations
+     (set-current! 'location-list '())
+     (list
+      (delayed "when-new-location-cond" 2000 when-new-location-cond-cb))))
 
 
 (define (noise)
@@ -445,7 +475,6 @@
    (else (code-block 'error '()))))
 
 (define (text->code-block text)
-  (msg "text->code-block" text)
   (let ((code (json/parse-string text)))
     (msg "&convert" code)
     (map inner-code-blockify code)))
@@ -587,7 +616,7 @@
   (let ((sexpr (json/parse-string text)))
     ;; eval in global environment
    (foldl (lambda (sexp r)
-            (append (eval sexp) r))
+            (append (eval sexp (interaction-environment)) r))
           '()
           sexpr)))
 
@@ -598,7 +627,7 @@
 (define (eval-blocks t)
   (append
    (foldl (lambda (sexp r)
-            (append (eval sexp) r))
+            (append (eval sexp (interaction-environment)) r))
           '()
           t)
    (list
@@ -672,6 +701,7 @@
 (define trigger-colour (list 255 200 100 255))
 (define trigger-functions
   (list "when-timer" "when-moved-metres" "when-in-new-location"
+        "when-in-new-location-cond"
         "global-altitude" "global-coverage" "global-timer"))
 
 (define action-colour (list 200 255 100 255))

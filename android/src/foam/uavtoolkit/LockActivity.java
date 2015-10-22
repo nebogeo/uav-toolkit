@@ -22,6 +22,7 @@ import android.content.pm.ActivityInfo;
 import android.view.WindowManager;
 import android.view.WindowManager.LayoutParams;
 import android.view.View;
+import android.view.KeyEvent;
 
 public class LockActivity extends foam.starwisp.StarwispActivity
 {
@@ -37,7 +38,7 @@ public class LockActivity extends foam.starwisp.StarwispActivity
         params.flags |= LayoutParams.FLAG_KEEP_SCREEN_ON;
         params.flags |= LayoutParams.FLAG_SHOW_WHEN_LOCKED;
         params.flags |= LayoutParams.FLAG_DISMISS_KEYGUARD;
-        //params.screenBrightness = 0;
+        params.screenBrightness = 0.1F;
         getWindow().setAttributes(params);
 
         getWindow().getDecorView().setSystemUiVisibility(
@@ -47,6 +48,7 @@ public class LockActivity extends foam.starwisp.StarwispActivity
             | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
             | View.SYSTEM_UI_FLAG_FULLSCREEN
             | View.SYSTEM_UI_FLAG_IMMERSIVE);
+
     }
 
     @Override
@@ -58,4 +60,5 @@ public class LockActivity extends foam.starwisp.StarwispActivity
         this.getWindow().setType(WindowManager.LayoutParams.TYPE_KEYGUARD_DIALOG);
         super.onAttachedToWindow();
     }
+
 }
